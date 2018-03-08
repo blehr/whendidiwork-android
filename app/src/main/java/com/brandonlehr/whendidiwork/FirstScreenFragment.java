@@ -1,7 +1,10 @@
 package com.brandonlehr.whendidiwork;
 
+import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Canvas;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -9,6 +12,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,6 +30,8 @@ import com.brandonlehr.whendidiwork.viewModels.MainActivityViewModel;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Inject;
+
 
 public class FirstScreenFragment extends Fragment {
     private static final String TAG = "FirstScreenFragment";
@@ -37,8 +43,16 @@ public class FirstScreenFragment extends Fragment {
     private List<Event> mEvents;
     private Calendar mCalendar = null;
     private Sheet mSheet = null;
+    private String sheetId;
+    private String calendarId;
     private RecyclerView mRecyclerView;
+
+    @Inject
+    ViewModelProvider.Factory viewModelFactory;
+
     MainActivityViewModel model;
+    SwipeController swipeController;
+    CalendarEventListRecyclerViewAdapter mAdapter;
 
     private OnFragmentInteractionListener mListener;
     private OnListFragmentInteractionListener mListListener;
@@ -47,9 +61,11 @@ public class FirstScreenFragment extends Fragment {
         // Required empty public constructor
     }
 
-    public static FirstScreenFragment newInstance() {
+    public static FirstScreenFragment newInstance(String calendarId, String sheetId) {
         FirstScreenFragment fragment = new FirstScreenFragment();
         Bundle args = new Bundle();
+        args.putString("calendarId", calendarId);
+        args.putString("sheetId", sheetId);
         fragment.setArguments(args);
         return fragment;
     }
@@ -59,7 +75,9 @@ public class FirstScreenFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         if (getArguments() != null) {
-
+            Bundle args = getArguments();
+            calendarId = args.getString("calendarId", null);
+            sheetId = args.getString("sheetId", null);
         }
     }
 
@@ -79,7 +97,8 @@ public class FirstScreenFragment extends Fragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        model = ViewModelProviders.of(getActivity()).get(MainActivityViewModel.class);
+        ((Whendidiwork) getActivity().getApplication()).getGoogleClientComponent().inject(this);
+        model = ViewModelProviders.of(this, viewModelFactory).get(MainActivityViewModel.class);
 
         model.getCalendar().observe(FirstScreenFragment.this, this::setCalendarInUse);
         model.getSheet().observe(FirstScreenFragment.this, this::setSheetInUse);
@@ -94,14 +113,54 @@ public class FirstScreenFragment extends Fragment {
         mRecyclerView = view.findViewById(R.id.calendarEventList);
         calendarSelect = view.findViewById(R.id.calendarSelect);
         sheetSelect = view.findViewById(R.id.sheetSelect);
+
+
+        swipeController = new SwipeController(new SwipeControllerActions() {
+            @Override
+            public void onRightClicked(int position) {
+                mEvents.remove(position);
+                mAdapter.notifyItemRemoved(position);
+                mAdapter.notifyItemRangeChanged(position, mAdapter.getItemCount());
+            }
+
+            @Override
+            public void onLeftClicked(int position) {
+//                super.onLeftClicked(position);
+                Log.d(TAG, "onLeftClicked: position " + position);
+                Event eventToEdit = mEvents.get(position);
+            }
+        }, getActivity().getApplication());
+        ItemTouchHelper itemTouchhelper = new ItemTouchHelper(swipeController);
+        itemTouchhelper.attachToRecyclerView(mRecyclerView);
+
+        mRecyclerView.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void onDraw(Canvas c, RecyclerView parent, RecyclerView.State state) {
+                swipeController.onDraw(c);
+            }
+        });
     }
+
+
+
+
+
 
     public void handleCalendarList(ArrayList<Calendar> calendars) {
         mCalendars = calendars;
 
+        setTimzoneInPrefrences(calendars);
+
         String lastUsedCalendar = CurrentUser.getUserResponse().getLastUsed().getCalendar();
 
-        if (!lastUsedCalendar.equals("") && mCalendar == null) {
+        if (calendarId != null) {
+            Calendar calendar = getCalendarById(mCalendars, calendarId);
+            int index = mCalendars.indexOf(calendar);
+            if (index != 0) {
+                mCalendars.remove(calendar);
+                mCalendars.add(0, calendar);
+            }
+        } else if (!lastUsedCalendar.equals("") && mCalendar == null) {
             Log.d(TAG, "handleCalendarList: lastused amd no mCalendar");
             Calendar calendar = getCalendarById(mCalendars, lastUsedCalendar);
             int index = mCalendars.indexOf(calendar);
@@ -109,8 +168,7 @@ public class FirstScreenFragment extends Fragment {
                 mCalendars.remove(calendar);
                 mCalendars.add(0, calendar);
             }
-        }
-        if (mCalendar != null) {
+        } else if (mCalendar != null) {
             Log.d(TAG, "handleCalendarList: mCalendar is not null" + mCalendar.toString());
             int index = mCalendars.indexOf(mCalendar);
             if (index != 0) {
@@ -118,6 +176,9 @@ public class FirstScreenFragment extends Fragment {
                 mCalendars.add(0, mCalendar);
             }
         }
+
+
+
 
         CalendarListAdapter adapter = new CalendarListAdapter(getContext(), R.layout.spinner_calendar_layout, mCalendars);
 
@@ -142,21 +203,40 @@ public class FirstScreenFragment extends Fragment {
     }
     public void getFiles(ArrayList<Sheet> sheets) {
         mSheets = sheets;
-        FileListAdapter adapter = new FileListAdapter(getContext(), R.layout.spinner_calendar_layout, mSheets);
-        sheetSelect.setAdapter(adapter);
 
         String lastUsedSheet = CurrentUser.getUserResponse().getLastUsed().getSheet();
-        if (mSheet != null) {
-            sheetSelect.setSelection(adapter.getIndexOfSheet(sheetSelect, mSheet.getId()));
-        } else if (!lastUsedSheet.equals("")) {
-            sheetSelect.setSelection(adapter.getIndexOfSheet(sheetSelect, lastUsedSheet));
+
+        if (sheetId != null) {
+            Sheet sheet = getSheetById(mSheets, sheetId);
+            int index = mSheets.indexOf(sheet);
+            if (index != 0) {
+                mSheets.remove(sheet);
+                mSheets.add(0, sheet);
+            }
+        } else if (!lastUsedSheet.equals("") && mSheet == null) {
+            Sheet sheet = getSheetById(mSheets, lastUsedSheet);
+            int index = mSheets.indexOf(sheet);
+            if (index != 0) {
+                mSheets.remove(sheet);
+                mSheets.add(0, sheet);
+            }
+        } else if (mSheet != null) {
+            Log.d(TAG, "handleCalendarList: mSheet is not null" + mSheet.toString());
+            int index = mSheets.indexOf(mSheet);
+            if (index != 0) {
+                mSheets.remove(mSheet);
+                mSheets.add(0, mSheet);
+            }
         }
+
+        FileListAdapter adapter = new FileListAdapter(getContext(), R.layout.spinner_calendar_layout, mSheets);
+        sheetSelect.setAdapter(adapter);
 
         sheetSelect.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Sheet sheet = (Sheet) mSheets.get(position);
-                mSheet = sheet; // member variable
+                model.setSheet(sheet);
                 Toast.makeText(getContext(), sheet.getName(), Toast.LENGTH_LONG).show();
             }
 
@@ -174,34 +254,8 @@ public class FirstScreenFragment extends Fragment {
     public void handleCalendarEvents(ArrayList<Event> events) {
         mEvents = events;
 
-//        Collections.sort(mEvents, (s1, s2) -> {
-//            int value = 0;
-//            if (s1.getStart() == null) return value;
-//            if (s2.getStart() == null) return value;
-//            if (s1.getStart().getDateTime() == null && s2.getStart().getDateTime() != null) {
-//                value = DateTime.parse(new DateTime(s1.getStart().getDate()).toString()).
-//                        compareTo(DateTime.parse(new DateTime(s2.getStart().getDateTime()).toString()));
-//            }
-//            if (s1.getStart().getDateTime() != null && s2.getStart().getDateTime() == null) {
-//                value = DateTime.parse(new DateTime(s1.getStart().getDateTime()).toString()).
-//                        compareTo(DateTime.parse(new DateTime(s2.getStart().getDate()).toString()));
-//            }
-//            if (s1.getStart().getDateTime() == null && s2.getStart().getDateTime() == null) {
-//                value = DateTime.parse(new DateTime(s1.getStart().getDate()).toString()).
-//                        compareTo(DateTime.parse(new DateTime(s2.getStart().getDate()).toString()));
-//            }
-//            if (s1.getStart().getDateTime() != null && s2.getStart().getDateTime() != null) {
-//                value = DateTime.parse(new DateTime(s1.getStart().getDateTime()).toString()).
-//                        compareTo(DateTime.parse(new DateTime(s2.getStart().getDateTime()).toString()));
-//            }
-//
-//            return value;
-////            DateTime.parse(new DateTime(s1.getStart().getDateTime()).toString()).
-////                    compareTo(DateTime.parse(new DateTime(s2.getStart().getDateTime()).toString()));
-//        });
-
-
         mRecyclerView.setAdapter(new CalendarEventListRecyclerViewAdapter(mEvents, mListListener));
+        mAdapter = (CalendarEventListRecyclerViewAdapter) mRecyclerView.getAdapter();
     }
 
     public void setCalendarInUse(Calendar calendar) {
@@ -220,6 +274,30 @@ public class FirstScreenFragment extends Fragment {
             }
         }
         return selectedCalendar;
+    }
+    public Sheet getSheetById(List<Sheet> sheets, String id) {
+        Sheet selectedSheet = null;
+        for (Sheet sheet : sheets) {
+            if (sheet.getId().equals(id)) {
+                selectedSheet = sheet;
+            }
+        }
+        return selectedSheet;
+    }
+
+    private void setTimzoneInPrefrences(List<Calendar> calendars) {
+        String primaryTimezone = "";
+        for (Calendar cal : calendars) {
+            if (cal.getPrimary() != null && cal.getPrimary() == true) {
+                primaryTimezone = cal.getTimeZone();
+            }
+        }
+        Log.d(TAG, "setTimzoneInPrefrences: TIMEZONE=================" + primaryTimezone);
+        SharedPreferences sharedPref = getActivity().getSharedPreferences(
+                getString(R.string.storedPrefs), Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("timeZone", primaryTimezone);
+        editor.apply();
     }
 
 

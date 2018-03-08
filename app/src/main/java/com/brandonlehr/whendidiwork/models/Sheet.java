@@ -54,4 +54,14 @@ public class Sheet implements Serializable {
     public void setMimeType(String mimeType) {
         this.mimeType = mimeType;
     }
+
+    @Override
+    public String toString() {
+        return "Sheet{" +
+                "kind='" + kind + '\'' +
+                ", id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", mimeType='" + mimeType + '\'' +
+                '}';
+    }
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fa_icon_archive">&#xf187;</string>
+    <string name="fa_icon_ban">&#xf05e;</string>
+    <string name="fa_icon_refresh">&#xf021;</string>
+    <string name="fa_icon_chevron_right">&#xf054;</string>
+    <string name="fa_icon_alt_file" >&#xf15c;</string>
+    <string name="fa_icon_question_circle" >&#xf059;</string>
+    <string name="fa_icon_window_close" >&#xf2d4;</string>
+    <string name="fa_icon_trash" >&#xf014;</string>
+    <string name="fa_icon_edit" >&#xf044;</string>
+</resources>

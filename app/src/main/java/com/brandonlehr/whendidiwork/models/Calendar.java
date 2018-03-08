@@ -1,5 +1,8 @@
 package com.brandonlehr.whendidiwork.models;
 
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.PrimaryKey;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -8,7 +11,7 @@ import java.io.Serializable;
 /**
  * Created by blehr on 2/12/2018.
  */
-
+@Entity
 public class Calendar implements Serializable {
     @SerializedName("kind")
     @Expose
@@ -18,7 +21,8 @@ public class Calendar implements Serializable {
     private String etag;
     @SerializedName("id")
     @Expose
-    private String id;
+    @PrimaryKey
+    private String id = "";
     @SerializedName("summary")
     @Expose
     private String summary;

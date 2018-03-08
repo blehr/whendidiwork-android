@@ -1,10 +1,8 @@
 package com.brandonlehr.whendidiwork.viewModels;
 
-import android.app.Application;
-import android.arch.lifecycle.AndroidViewModel;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
-import android.support.annotation.NonNull;
+import android.arch.lifecycle.ViewModel;
 import android.util.Log;
 
 import com.brandonlehr.whendidiwork.models.Calendar;
@@ -13,31 +11,34 @@ import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.FileList;
 import com.brandonlehr.whendidiwork.models.Sheet;
 import com.brandonlehr.whendidiwork.services.AuthWithServer;
-import com.brandonlehr.whendidiwork.services.RetrofitClient;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Inject;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.Retrofit;
 
 /**
  * Created by blehr on 2/17/2018.
  */
 
-public class MainActivityViewModel extends AndroidViewModel {
+public class MainActivityViewModel extends ViewModel {
     private static final String TAG = "MainActivityViewModel";
 
     private MutableLiveData<ArrayList<Calendar>> mCalendars = new MutableLiveData<>();
-    private MutableLiveData<ArrayList<Sheet>> mSheets;
+    private MutableLiveData<ArrayList<Sheet>> mSheets = new MutableLiveData<>();
     private MutableLiveData<ArrayList<Event>> mEvents;
     private MutableLiveData<Calendar> mCalendar = new MutableLiveData<>();
     private MutableLiveData<Sheet> mSheet = new MutableLiveData<>();
-    private AuthWithServer client = RetrofitClient.getClient(this.getApplication()).create(AuthWithServer.class);
+    private AuthWithServer client;
 
-    public MainActivityViewModel(@NonNull Application application) {
-        super(application);
+    @Inject
+    public MainActivityViewModel(Retrofit retrofitClient) {
+        client = retrofitClient.create(AuthWithServer.class);
     }
 
     public LiveData<ArrayList<Calendar>> getCalendarList() {
@@ -70,8 +71,7 @@ public class MainActivityViewModel extends AndroidViewModel {
     }
 
     public LiveData<ArrayList<Sheet>> getFiles() {
-        if (mSheets == null) {
-            mSheets = new MutableLiveData<>();
+        if (mSheets.getValue() == null) {
             fetchFiles();
         }
         return mSheets;
@@ -131,6 +131,7 @@ public class MainActivityViewModel extends AndroidViewModel {
 
     public MutableLiveData<Sheet> setSheet(Sheet sheet) {
         mSheet.setValue(sheet);
+        Log.d(TAG, "setSheet: mSheet: " + mSheet.getValue().toString());
         return mSheet;
     }
 
@@ -142,17 +143,4 @@ public class MainActivityViewModel extends AndroidViewModel {
     public LiveData<Sheet> getSheet() {
         return mSheet;
     }
-
-//    public LiveData<ArrayList<Event>> getEvents() {
-//        return mEvents;
-//    }
-//
-//    public MutableLiveData<ArrayList<Calendar>> getCalendars() {
-//        return mCalendars;
-//    }
-//
-//    public MutableLiveData<ArrayList<Sheet>> getSheets() {
-//        return mSheets;
-//    }
-
 }

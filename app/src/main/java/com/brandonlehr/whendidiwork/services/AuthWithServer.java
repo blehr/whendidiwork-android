@@ -1,12 +1,18 @@
 package com.brandonlehr.whendidiwork.services;
 
+import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.CalendarList;
+import com.brandonlehr.whendidiwork.models.CreateCalendarPostBody;
+import com.brandonlehr.whendidiwork.models.CreateEventPostBody;
+import com.brandonlehr.whendidiwork.models.CreateSheetPostBody;
 import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.FileList;
+import com.brandonlehr.whendidiwork.models.Sheet;
 import com.brandonlehr.whendidiwork.models.TokenObject;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import retrofit2.Call;
@@ -34,5 +40,14 @@ public interface AuthWithServer {
 
     @GET("/api/getSheetMeta/{sheetId}")
     Call<ArrayList<String[]>> getSheetMeta(@Path("sheetId") String sheetId);
+
+    @POST("/api/createCalendar")
+    Call<Calendar> createCalendar(@Body CreateCalendarPostBody newCalendar);
+
+    @POST("/api/createSheet")
+    Call<Sheet> createSheet(@Body CreateSheetPostBody newSheet);
+
+    @POST("/api/createEvent/{calendarId}/{sheetId}")
+    Call<Event> createEvent(@Path("calendarId") String calendarId, @Path("sheetId") String sheetId, @Body HashMap<String, CreateEventPostBody> event);
 
 }

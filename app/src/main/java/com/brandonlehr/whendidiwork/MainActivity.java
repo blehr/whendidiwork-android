@@ -1,13 +1,17 @@
 package com.brandonlehr.whendidiwork;
 
 import android.animation.Animator;
+import android.arch.lifecycle.ViewModelProvider;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -15,8 +19,11 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import com.brandonlehr.whendidiwork.services.GoogleClient;
+import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.viewModels.MainActivityViewModel;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+
+import javax.inject.Inject;
 
 public class MainActivity extends AppCompatActivity implements FirstScreenFragment.OnFragmentInteractionListener {
     private static final String TAG = "MainActivity";
@@ -25,10 +32,22 @@ public class MainActivity extends AppCompatActivity implements FirstScreenFragme
     FloatingActionButton fab1;
     FloatingActionButton fab2;
     FloatingActionButton fab3;
+    String calendarId = null;
+    String sheetId = null;
+    Sheet mSheet;
     LinearLayout fabLayout1, fabLayout2, fabLayout3;
     View fabBGLayout;
     boolean isFABOpen = false;
-    private GoogleSignInClient mGoogleSignInClient;
+
+    @Inject
+    GoogleSignInClient mGoogleSignInClient;
+
+    @Inject
+    ViewModelProvider.Factory viewModelFactory;
+
+
+    MainActivityViewModel model;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,8 +57,9 @@ public class MainActivity extends AppCompatActivity implements FirstScreenFragme
 
         toolbar.setTitle("Whendidiwork");
         setSupportActionBar(toolbar);
+        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
+        model = ViewModelProviders.of(this, viewModelFactory).get(MainActivityViewModel.class);
 
-        mGoogleSignInClient = new GoogleClient().getInstance(getApplicationContext());
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
 
@@ -54,43 +74,60 @@ public class MainActivity extends AppCompatActivity implements FirstScreenFragme
         fab3 = (FloatingActionButton) findViewById(R.id.fab3);
 
 
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
+        model.getSheet().observe(this, this::syncSetSheet);
+        model.getCalendar().observe(this, calendar -> calendarId = calendar.getId());
 
-                if(!isFABOpen){
-                    showFABMenu();
-                }else{
-                    closeFABMenu();
-                }
+        Intent initiatingIntent = getIntent();
+
+        if (initiatingIntent.getExtras() != null) {
+            if (initiatingIntent.hasExtra("newCalendarId")) {
+                calendarId = initiatingIntent.getExtras().getString("newCalendarId");
             }
-        });
+            if (initiatingIntent.hasExtra("newSheetId")) {
+                sheetId = initiatingIntent.getExtras().getString("newSheetId");
+            }
 
-        fabBGLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
+            Log.d(TAG, "onCreate: sheetId==============" + sheetId);
+            Log.d(TAG, "onCreate: calendarId============" + calendarId);
+        }
+
+
+        fab.setOnClickListener(view -> {
+            if(!isFABOpen){
+                showFABMenu();
+            }else{
                 closeFABMenu();
             }
         });
 
+        fabBGLayout.setOnClickListener(view -> closeFABMenu());
+
         fabLayout1.setOnClickListener(view -> {
-            Toast.makeText(getApplicationContext(), "fab 1", Toast.LENGTH_SHORT).show();
+            Intent createEventIntent = new Intent(this, CreateEventActivity.class);
+//            createEventIntent.putExtra("sheet_name", mSheet.getName());
+//            createEventIntent.putExtra("sheet_id", mSheet.getId());
+//            createEventIntent.putExtra("calendar_id", calendarId);
+            startActivity(createEventIntent);
         });
         fabLayout2.setOnClickListener(view -> {
-            Toast.makeText(getApplicationContext(), "fab 2", Toast.LENGTH_SHORT).show();
+            Intent createSheetIntent = new Intent(MainActivity.this, CreateSheetActivity.class);
+            startActivity(createSheetIntent);
         });
         fabLayout3.setOnClickListener(view -> {
-//            Toast.makeText(getApplicationContext(), "fab 3", Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(MainActivity.this, CreateCalendarActivity.class);
             startActivity(intent);
         });
 
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-        transaction.replace(R.id.replace_me, FirstScreenFragment.newInstance());
+        Fragment firstScreenFragment = FirstScreenFragment.newInstance(calendarId, sheetId);
+        transaction.replace(R.id.replace_me, firstScreenFragment);
+
         transaction.commit();
 
+    }
+
+    private void syncSetSheet(Sheet sheet) {
+        mSheet = sheet;
     }
 
 //    private void showFABMenu(){

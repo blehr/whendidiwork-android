@@ -12,8 +12,6 @@ import com.brandonlehr.whendidiwork.models.CurrentUser;
 import com.brandonlehr.whendidiwork.models.TokenObject;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.services.AuthWithServer;
-import com.brandonlehr.whendidiwork.services.GoogleClient;
-import com.brandonlehr.whendidiwork.services.RetrofitClient;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -22,9 +20,12 @@ import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
+import javax.inject.Inject;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.Retrofit;
 
 
 public class LoginActivity extends AppCompatActivity implements Callback<UserResponse> {
@@ -36,7 +37,10 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
     // UI references.
     private View mProgressView;
     private SignInButton signInButton;
-    private GoogleSignInClient mGoogleSignInClient;
+    @Inject
+    GoogleSignInClient mGoogleSignInClient;
+    @Inject
+    Retrofit mRetrofitClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,17 +57,13 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
         signInButton = findViewById(R.id.sign_in_button);
 
         hideProgress();
-        client = RetrofitClient.getClient(getApplicationContext()).create(AuthWithServer.class);
 
-        mGoogleSignInClient = new GoogleClient().getInstance(getApplicationContext());
+        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
+        client = mRetrofitClient.create(AuthWithServer.class);
 
-        signInButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loginUser();
-            }
-        });
 
+        signInButton.setOnClickListener(v -> loginUser());
+//        signOut();
 
     }
 
