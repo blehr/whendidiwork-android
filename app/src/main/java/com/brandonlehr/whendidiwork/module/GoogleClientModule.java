@@ -30,9 +30,9 @@ public class GoogleClientModule {
                 .requestScopes(new Scope("https://www.googleapis.com/auth/calendar"))
                 .requestScopes(new Scope("https://www.googleapis.com/auth/drive"))
                 .requestScopes(new Scope("https://www.googleapis.com/auth/spreadsheets"))
-                .requestServerAuthCode(Constants.CLIENT_ID) // 732491487008-ta8o5q0lf2m1df8ttosesr28m7appu89.apps.googleusercontent.com good
+                .requestServerAuthCode(Constants.CLIENT_ID)
                 .requestEmail()
-                .build();                                                                                   // 992939485110-saio8vio3h5d3lonl32v5fhm4fgudmim.apps.googleusercontent.com
+                .build();
 
         // Build a GoogleSignInClient with the options specified by gso.
         return GoogleSignIn.getClient(application, gso);

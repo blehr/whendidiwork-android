@@ -1,5 +1,7 @@
 package com.brandonlehr.whendidiwork.models;
 
+import android.arch.persistence.room.ColumnInfo;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -10,7 +12,7 @@ import com.google.gson.annotations.SerializedName;
 public class Google {
     @SerializedName("expiry_date")
     @Expose
-    private Integer expiryDate;
+    private Long expiryDate;
     @SerializedName("profileImg")
     @Expose
     private String profileImg;
@@ -28,9 +30,10 @@ public class Google {
     private String token;
     @SerializedName("id")
     @Expose
+    @ColumnInfo(name = "google_id")
     private String id;
 
-    public Integer getExpiryDate() {
+    public Long getExpiryDate() {
         return expiryDate;
     }
 
@@ -55,5 +58,33 @@ public class Google {
     }
     public String getId() {
         return id;
+    }
+
+    public void setExpiryDate(Long expiryDate) {
+        this.expiryDate = expiryDate;
+    }
+
+    public void setProfileImg(String profileImg) {
+        this.profileImg = profileImg;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 }

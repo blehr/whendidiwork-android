@@ -22,4 +22,12 @@ public class LastUsed {
     public String getCalendar() {
         return calendar;
     }
+
+    public void setSheet(String sheet) {
+        this.sheet = sheet;
+    }
+
+    public void setCalendar(String calendar) {
+        this.calendar = calendar;
+    }
 }

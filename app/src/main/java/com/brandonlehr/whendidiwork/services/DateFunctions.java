@@ -15,7 +15,7 @@ public class DateFunctions {
     public static String displayDateTime(String date) {
         DateTime dt = new DateTime( date ) ;
 
-        DateTimeFormatter dtfOut = DateTimeFormat.forPattern("EEEEE MMMMM dd, yyyy hh:mma");
+        DateTimeFormatter dtfOut = DateTimeFormat.forPattern("EEE MMMMM dd, yyyy h:mm a");
         return dtfOut.print(dt);
     }
     public static String displayDate(String date) {
@@ -24,5 +24,13 @@ public class DateFunctions {
         DateTimeFormatter dtfOut = DateTimeFormat.forPattern("EEEEE MMMMM dd, yyyy");
         return dtfOut.print(dt);
     }
+
+    public static String displayTimes(String date) {
+        DateTime dt = new DateTime( date ) ;
+
+        DateTimeFormatter dtfOut = DateTimeFormat.forPattern("h:mm a");
+        return dtfOut.print(dt);
+    }
+
 }
 

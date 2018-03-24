@@ -8,16 +8,17 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 
-import com.brandonlehr.whendidiwork.models.CurrentUser;
 import com.brandonlehr.whendidiwork.models.TokenObject;
 import com.brandonlehr.whendidiwork.models.UserResponse;
-import com.brandonlehr.whendidiwork.services.AuthWithServer;
+import com.brandonlehr.whendidiwork.repository.UserRepository;
+import com.brandonlehr.whendidiwork.services.ApiCalls;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 
 import javax.inject.Inject;
@@ -32,7 +33,7 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
     private static final String TAG = "LoginActivity";
 
     public static final int RC_SIGN_IN = 1;
-    private AuthWithServer client;
+    private ApiCalls client;
 
     // UI references.
     private View mProgressView;
@@ -41,6 +42,8 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
     GoogleSignInClient mGoogleSignInClient;
     @Inject
     Retrofit mRetrofitClient;
+    @Inject
+    UserRepository mUserRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,19 +55,15 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
         toolbar.setTitle("Whendidiwork");
         setSupportActionBar(toolbar);
 
-
         mProgressView = findViewById(R.id.login_progress);
         signInButton = findViewById(R.id.sign_in_button);
 
         hideProgress();
 
-        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
-        client = mRetrofitClient.create(AuthWithServer.class);
-
+        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
+        client = mRetrofitClient.create(ApiCalls.class);
 
         signInButton.setOnClickListener(v -> loginUser());
-//        signOut();
-
     }
 
     private void signIn() {
@@ -118,15 +117,10 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
         }
     }
 
-    public GoogleSignInClient getGoogleSignInClient() {
-        return mGoogleSignInClient;
-    }
-
     @Override
     protected void onStart() {
         super.onStart();
         Log.d(TAG, "onStart: Starts");
-//        signOut();
 
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
 
@@ -139,16 +133,21 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
                             Log.d(TAG, "onComplete: Attempt to silent login ================= ");
                             handleSignInResult(task);
                         }
+                    })
+                    .addOnFailureListener(this, new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            signOut();
+                            hideProgress();
+                        }
                     });
         }
-
 
     }
 
     @Override
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
-        CurrentUser.setUserResponse(response.body());
-        hideProgress();
+        mUserRepository.insertUser(response.body());
 
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
@@ -165,7 +164,7 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
                         // ...
-                        Log.d(TAG, "onComplete: SIGNOUT=========================================");
+                        Log.d(TAG, "onComplete: SIGNOUT =========================================");
                     }
                 });
     }

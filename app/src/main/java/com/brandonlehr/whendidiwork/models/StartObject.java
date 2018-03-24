@@ -1,5 +1,7 @@
 package com.brandonlehr.whendidiwork.models;
 
+import android.arch.persistence.room.ColumnInfo;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -10,12 +12,15 @@ import com.google.gson.annotations.SerializedName;
 public class StartObject {
     @SerializedName("dateTime")
     @Expose
+    @ColumnInfo(name = "start_dateTime")
     private String dateTime;
     @SerializedName("timeZone")
     @Expose
+    @ColumnInfo(name = "start_timeZone")
     private String timeZone;
     @SerializedName("date")
     @Expose
+    @ColumnInfo(name = "start_date")
     private String date;
 
     public String getDateTime() {

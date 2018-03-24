@@ -1,5 +1,11 @@
 package com.brandonlehr.whendidiwork.models;
 
+import android.arch.persistence.room.Embedded;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -8,16 +14,19 @@ import java.util.List;
 /**
  * Created by blehr on 2/12/2018.
  */
-
+@Entity(tableName = "events")
 public class Event {
     @SerializedName("kind")
     @Expose
     private String kind;
+    @Ignore
     @SerializedName("etag")
     @Expose
     private String etag;
     @SerializedName("id")
     @Expose
+    @PrimaryKey
+    @NonNull
     private String id;
     @SerializedName("status")
     @Expose
@@ -36,12 +45,15 @@ public class Event {
     private String summary;
     @SerializedName("start")
     @Expose
+    @Embedded
     private StartObject start;
     @SerializedName("end")
     @Expose
+    @Embedded
     private EndObject end;
     @SerializedName("recurrence")
     @Expose
+    @Ignore
     private List<String> recurrence = null;
     @SerializedName("iCalUID")
     @Expose

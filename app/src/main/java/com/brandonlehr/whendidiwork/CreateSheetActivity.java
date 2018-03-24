@@ -8,9 +8,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.brandonlehr.whendidiwork.models.CreateSheetPostBody;
@@ -26,9 +27,10 @@ public class CreateSheetActivity extends AppCompatActivity {
     TextView revealSheetName;
     Button createSheetButton;
     CreateSheetViewModel model;
+    boolean mIsLoading = false;
+    ProgressBar mProgressBar;
 
     @Inject
-//    @Named("createSheet_viewModelFactory")
     ViewModelProvider.Factory mViewModelFactory;
 
     String sheetNameConstant = "whendidiwork@";
@@ -43,15 +45,26 @@ public class CreateSheetActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
+        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
 
-//        model = ViewModelProviders.of(this).get(CreateSheetViewModel.class);
         model = ViewModelProviders.of(this, mViewModelFactory).get(CreateSheetViewModel.class);
 
         createSheetEditText = findViewById(R.id.create_sheet_edit_text);
         createSheetButton = findViewById(R.id.create_sheet_button);
         sheetResponse = findViewById(R.id.sheet_response);
         revealSheetName = findViewById(R.id.reveal_sheet_name);
+        mProgressBar = findViewById(R.id.progressBar3);
+
+        model.getIsLoading().observe(this, isLoading -> {
+            mIsLoading = isLoading;
+            if (mIsLoading) {
+                mProgressBar.setVisibility(View.VISIBLE);
+                createSheetButton.setVisibility(View.GONE);
+            } else {
+                mProgressBar.setVisibility(View.GONE);
+                createSheetButton.setVisibility(View.VISIBLE);
+            }
+        });
 
         createSheetEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -80,15 +93,13 @@ public class CreateSheetActivity extends AppCompatActivity {
 
             CreateSheetPostBody sheetPostBody = new CreateSheetPostBody(sheetName);
 
-            model.createSheet(sheetPostBody).observe(this, sheet -> {
-                Log.d(TAG, "handleSheetSubmit: observe sheet fired =====================================================");
-                sheetResponse.setText(sheet.toString());
+            model.createSheet(sheetPostBody);
 
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.putExtra("newSheetId", sheet.getId());
-                startActivity(intent);
-            });
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
         }
 
     }
+
 }
+

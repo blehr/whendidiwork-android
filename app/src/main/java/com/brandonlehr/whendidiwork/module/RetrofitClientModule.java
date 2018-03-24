@@ -90,33 +90,5 @@ public class RetrofitClientModule {
     public HttpLoggingInterceptor logging() {
         return new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
     }
-//
-//    @Provides
-//    @Named("mainActivity_viewModel")
-//    ViewModel provideMainActivityViewModel(MainActivityViewModel viewModel) {
-//        return viewModel;
-//    }
-//
-//    @Provides
-//    @Named("createSheet_viewModel")
-//    ViewModel provideCreateSheetViewModel(CreateSheetViewModel viewModel) {
-//        return viewModel;
-//    }
-//
-//    @Provides
-//    @Named("mainActivity_viewModelFactory")
-//    ViewModelProvider.Factory provideMainActivityViewModelFactory(
-//            ViewModelFactory factory
-//    ) {
-//        return factory;
-//    }
-//
-//    @Provides
-//    @Named("createSheet_viewModelFactory")
-//    ViewModelProvider.Factory provideCreateSheetViewModelFactory(
-//            CreateSheetViewModelFactory factory
-//    ) {
-//        return factory;
-//    }
 
 }

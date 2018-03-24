@@ -5,10 +5,11 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.support.design.widget.BottomSheetBehavior;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Editable;
@@ -19,10 +20,16 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.TimePicker;
-import android.widget.Toast;
 
 import com.brandonlehr.whendidiwork.models.CreateEventPostBody;
+import com.brandonlehr.whendidiwork.models.Event;
+import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.TimeZone;
+import com.brandonlehr.whendidiwork.models.UserTimer;
 import com.brandonlehr.whendidiwork.viewModels.CreateEventViewModel;
 
 import org.joda.time.DateTime;
@@ -31,6 +38,7 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Objects;
 
 import javax.inject.Inject;
 
@@ -43,23 +51,37 @@ public class CreateEventActivity extends AppCompatActivity {
     private EditText endTimeEditText;
     private EditText summaryEditText;
     private Button submitButton;
-    String sheetName;
+    private Button cancelButton;
+    private ProgressBar mProgressBar;
+    private TextView title;
+    TextView bottomSheetTitle;
+    TextView bottomSheetText;
     String sheetId;
     String calendarId;
     String summaryPrefix;
+    Sheet mSelectedSheet;
+    com.brandonlehr.whendidiwork.models.Calendar mSelectedCalendar;
     final Calendar c = Calendar.getInstance();
     final int year = c.get(Calendar.YEAR);
     final int month = c.get(Calendar.MONTH);
     final int day = c.get(Calendar.DAY_OF_MONTH);
     String format = "EEE MMM dd, yyyy";
+    String timeFormat = "hh:mm a";
     DateTimeFormatter fmt = ISODateTimeFormat.dateTime();
     String startTime;
     String endTime;
     String startDate;
     String endDate;
     String note;
-    String timeZone;
-
+    String eventToEditId;
+    Event eventToEdit;
+    TimeZone mTimeZone;
+    boolean isAllDay;
+    CreateEventPostBody event;
+    private LinearLayout bottomSheet;
+    private LinearLayout bottomSheetTitleLL;
+    BottomSheetBehavior bottomSheetBehavior;
+    UserTimer mUserTimer;
 
     @Inject
     ViewModelProvider.Factory viewModelFactory;
@@ -76,22 +98,70 @@ public class CreateEventActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
+
+        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
+        model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
+
         Intent initiatingIntent = getIntent();
-        if (initiatingIntent.getExtras() != null) {
-            if (initiatingIntent.hasExtra("sheet_name")) {
-                sheetName = initiatingIntent.getStringExtra("sheet_name");
-                summaryPrefix = sheetName.substring(12).concat(": ");
-            }
-            if (initiatingIntent.hasExtra("sheet_id")) {
-                sheetId = initiatingIntent.getStringExtra("sheet_id");
-            }
-            if (initiatingIntent.hasExtra("calendar_id")) {
-                calendarId = initiatingIntent.getStringExtra("calendar_id");
-            }
+        if (initiatingIntent.hasExtra("EVENT_ID_TO_EDIT")) {
+            eventToEditId = initiatingIntent.getStringExtra("EVENT_ID_TO_EDIT");
+        }
+        if (Objects.equals(initiatingIntent.getAction(), "CREATE_EVENT_FROM_TIMER")) {
+            model.getUserTimer().observe(this, userTimer -> {
+
+                if (userTimer != null) {
+                    mUserTimer = userTimer;
+
+                    Log.d(TAG, "onCreate: =================== " + mUserTimer.toString());
+                    prepareEventFromTimer(mUserTimer);
+                }
+            });
         }
 
-        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
-        model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
+
+        model.getTimeZone().observe(this, timeZone -> mTimeZone = timeZone);
+        model.getSelectedCalendar().observe(this, calendar -> {
+            mSelectedCalendar = calendar;
+            calendarId = mSelectedCalendar.getId();
+        });
+        model.getSelectedSheet().observe(this, sheet -> {
+            mSelectedSheet = sheet;
+            sheetId = mSelectedSheet.getId();
+            summaryPrefix = mSelectedSheet.getName().substring(12) + " ";
+            if (eventToEditId == null) {
+                summaryEditText.setText(summaryPrefix);
+                summaryEditText.setSelection(summaryPrefix.length());
+            }
+        });
+
+        bottomSheetTitle = findViewById(R.id.bottom_sheet_title);
+        bottomSheetText = findViewById(R.id.bottom_sheet_text);
+        bottomSheetTitleLL = findViewById(R.id.title_LL);
+
+        bottomSheetTitleLL.setOnClickListener(view -> toggleBottomSheet());
+
+        bottomSheetTitle.setText(R.string.help);
+        bottomSheetText.setText(R.string.help_text);
+
+        // bottom sheet
+        bottomSheet = findViewById(R.id.bottom_sheet);
+
+        // init the bottom sheet behavior
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
+
+        // change the state of the bottom sheet
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        bottomSheetBehavior.setHideable(false);
+
+        model.getErrorResponse().observe(this, response -> {
+            mProgressBar.setVisibility(View.GONE);
+            Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Sorry an error has occurred", Snackbar.LENGTH_LONG);
+            View view = errorSnackbar.getView();
+            TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
+            tv.setTextColor(Color.RED);
+            tv.setTextSize(18f);
+            errorSnackbar.show();
+        });
 
         startDateEditText = findViewById(R.id.start_date_edit_text);
         startTimeEditText = findViewById(R.id.start_time_edit_text);
@@ -99,22 +169,35 @@ public class CreateEventActivity extends AppCompatActivity {
         endTimeEditText = findViewById(R.id.end_time_edit_text);
         summaryEditText = findViewById(R.id.summary_edit_text);
         submitButton = findViewById(R.id.submit_event);
-        summaryEditText.setText(summaryPrefix);
-        summaryEditText.setSelection(summaryPrefix.length());
+        cancelButton = findViewById(R.id.cancelButton);
+        mProgressBar = findViewById(R.id.progressBar4);
+        title = findViewById(R.id.create_event_instructions);
+
+        mProgressBar.setVisibility(View.GONE);
+
+        title.setText(R.string.create_an_event);
+
+        if (eventToEditId != null) {
+            title.setText(R.string.update_an_event);
+            model.getEventById(eventToEditId).observe(this, event -> {
+                eventToEdit = event;
+                prepareEventToEdit(eventToEdit);
+            });
+        }
+
         startDateEditText.setOnClickListener(view -> handleStartDateClick());
         startTimeEditText.setOnClickListener(view -> handleStartTimeClick());
         endDateEditText.setOnClickListener(view -> handleEndDateClick());
         endTimeEditText.setOnClickListener(view -> handleEndTimeClick());
         submitButton.setOnClickListener(view -> handleSubmit());
+        cancelButton.setOnClickListener(view -> cancelCreateEvent());
         summaryEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
             }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-
             }
 
             @Override
@@ -124,12 +207,48 @@ public class CreateEventActivity extends AppCompatActivity {
                 }
             }
         });
+    }
 
+    private DateTime convertToDateTime(String dateString) {
+        return new DateTime(dateString);
+    }
+
+    private void prepareEventToEdit(Event event) {
+        if (event.getStart().getDateTime() == null) {
+            isAllDay = true;
+            startDateEditText.setText(convertToDateTime(event.getStart().getDate()).toString(format));
+            endDateEditText.setText(convertToDateTime(event.getEnd().getDate()).toString(format));
+        } else {
+            startDateEditText.setText(convertToDateTime(event.getStart().getDateTime()).toString(format));
+            startTimeEditText.setText(convertToDateTime(event.getStart().getDateTime()).toString(timeFormat));
+            endDateEditText.setText(convertToDateTime(event.getEnd().getDateTime()).toString(format));
+            endTimeEditText.setText(convertToDateTime(event.getEnd().getDateTime()).toString(timeFormat));
+        }
+        summaryEditText.setText(event.getSummary());
+        summaryEditText.setSelection(event.getSummary().length());
+    }
+
+    private void prepareEventFromTimer(UserTimer userTimer) {
+        DateTime start = new DateTime(userTimer.getStartTimeStamp());
+        DateTime stop = new DateTime(userTimer.getEndTimeStamp());
+
+        startDateEditText.setText(start.toString(format));
+        startTimeEditText.setText(start.toString(timeFormat));
+        endDateEditText.setText(stop.toString(format));
+        endTimeEditText.setText(stop.toString(timeFormat));
     }
 
     private void handleStartDateClick() {
         hideKeyboard(this);
-        new DatePickerDialog(CreateEventActivity.this, mStartDateListener, year, month, day).show();
+        if (mUserTimer != null) {
+            DateTime dt = new DateTime(mUserTimer.getStartTimeStamp());
+            new DatePickerDialog(CreateEventActivity.this, mStartDateListener, dt.getYear(), dt.getMonthOfYear() - 1, dt.getDayOfMonth()).show();
+        } else if (eventToEdit != null) {
+            DateTime dt = isAllDay ? convertToDateTime(eventToEdit.getStart().getDate()) : convertToDateTime(eventToEdit.getStart().getDateTime());
+            new DatePickerDialog(CreateEventActivity.this, mStartDateListener, dt.getYear(), dt.getMonthOfYear() - 1, dt.getDayOfMonth()).show();
+        } else {
+            new DatePickerDialog(CreateEventActivity.this, mStartDateListener, year, month, day).show();
+        }
     }
 
     private DatePickerDialog.OnDateSetListener mStartDateListener = new DatePickerDialog.OnDateSetListener() {
@@ -140,14 +259,21 @@ public class CreateEventActivity extends AppCompatActivity {
             c.set(Calendar.DAY_OF_MONTH, i2);
             DateTime dateTime = new DateTime(c);
             startDate = fmt.print(dateTime);
-            Log.d(TAG, "onDateSet: startDate ========= " + startDate);
             startDateEditText.setText(dateTime.toString(format));
         }
     };
 
     private void handleEndDateClick() {
         hideKeyboard(this);
-        new DatePickerDialog(CreateEventActivity.this, mEndDateListener, year, month, day).show();
+        if (mUserTimer != null) {
+            DateTime dt = new DateTime(mUserTimer.getEndTimeStamp());
+            new DatePickerDialog(CreateEventActivity.this, mEndDateListener, dt.getYear(), dt.getMonthOfYear() - 1, dt.getDayOfMonth()).show();
+        } else if (eventToEdit != null) {
+            DateTime dt = isAllDay ? convertToDateTime(eventToEdit.getEnd().getDate()) : convertToDateTime(eventToEdit.getEnd().getDateTime());
+            new DatePickerDialog(CreateEventActivity.this, mEndDateListener, dt.getYear(), dt.getMonthOfYear() - 1, dt.getDayOfMonth()).show();
+        } else {
+            new DatePickerDialog(CreateEventActivity.this, mEndDateListener, year, month, day).show();
+        }
     }
 
     private DatePickerDialog.OnDateSetListener mEndDateListener = new DatePickerDialog.OnDateSetListener() {
@@ -167,7 +293,15 @@ public class CreateEventActivity extends AppCompatActivity {
         Calendar mcurrentTime = Calendar.getInstance();
         int hour = mcurrentTime.get(Calendar.HOUR_OF_DAY);
         int minute = mcurrentTime.get(Calendar.MINUTE);
-        new TimePickerDialog(CreateEventActivity.this, mStartTimeListener, hour, minute, false).show();
+        if (mUserTimer != null) {
+            DateTime dt = new DateTime(mUserTimer.getStartTimeStamp());
+            new TimePickerDialog(CreateEventActivity.this, mStartTimeListener, dt.getHourOfDay(), dt.getMinuteOfHour(), false).show();
+        } else if (eventToEdit != null && !isAllDay) {
+            DateTime dt = convertToDateTime(eventToEdit.getStart().getDateTime());
+            new TimePickerDialog(CreateEventActivity.this, mStartTimeListener, dt.getHourOfDay(), dt.getMinuteOfHour(), false).show();
+        } else {
+            new TimePickerDialog(CreateEventActivity.this, mStartTimeListener, hour, minute, false).show();
+        }
     }
 
     private TimePickerDialog.OnTimeSetListener mStartTimeListener = new TimePickerDialog.OnTimeSetListener() {
@@ -177,7 +311,6 @@ public class CreateEventActivity extends AppCompatActivity {
             c.set(Calendar.MINUTE, minute);
             DateTime dateTime = new DateTime(c);
             startTime = fmt.print(dateTime);
-            Log.d(TAG, "onTimeSet: starttime ================= " + startTime);
             String time = convertTo12HourFormat(hourOfDay, minute);
             startTimeEditText.setText(time);
         }
@@ -188,7 +321,15 @@ public class CreateEventActivity extends AppCompatActivity {
         Calendar mcurrentTime = Calendar.getInstance();
         int hour = mcurrentTime.get(Calendar.HOUR_OF_DAY);
         int minute = mcurrentTime.get(Calendar.MINUTE);
-        new TimePickerDialog(CreateEventActivity.this, mEndTimeListener, hour, minute, false).show();
+        if (mUserTimer != null) {
+            DateTime dt = new DateTime(mUserTimer.getEndTimeStamp());
+            new TimePickerDialog(CreateEventActivity.this, mEndTimeListener, dt.getHourOfDay(), dt.getMinuteOfHour(), false).show();
+        } else if (eventToEdit != null && !isAllDay) {
+            DateTime dt = convertToDateTime(eventToEdit.getEnd().getDateTime());
+            new TimePickerDialog(CreateEventActivity.this, mEndTimeListener, dt.getHourOfDay(), dt.getMinuteOfHour(), false).show();
+        } else {
+            new TimePickerDialog(CreateEventActivity.this, mEndTimeListener, hour, minute, false).show();
+        }
     }
 
     private TimePickerDialog.OnTimeSetListener mEndTimeListener = new TimePickerDialog.OnTimeSetListener() {
@@ -208,22 +349,93 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void handleSubmit() {
-        if (startDate == null || endDate == null || startTime == null || endTime == null) {
+        mProgressBar.setVisibility(View.VISIBLE);
+        hideKeyboard(this);
+
+        note = getNote();
+        if (mUserTimer != null) {
+            if (endDate == null) {
+                endDate = new DateTime(mUserTimer.getEndTimeStamp()).toDateTime().toString();
+            }
+            if (startDate == null) {
+                startDate = new DateTime(mUserTimer.getStartTimeStamp()).toDateTime().toString();
+            }
+            if (endTime == null) {
+                endTime = new DateTime(mUserTimer.getEndTimeStamp()).toDateTime().toString();
+            }
+            if (startTime == null) {
+                startTime = new DateTime(mUserTimer.getStartTimeStamp()).toDateTime().toString();
+            }
+            event = new CreateEventPostBody(endDate, startDate, endTime, startTime, mTimeZone.getTimeZone(), note);
+        } else if (eventToEdit != null) {
+            if (endDate == null) {
+                endDate = eventToEdit.getEnd().getDateTime();
+            }
+            if (startDate == null) {
+                startDate = eventToEdit.getStart().getDateTime();
+            }
+            if (endTime == null) {
+                endTime = eventToEdit.getEnd().getDateTime();
+            }
+            if (startTime == null) {
+                startTime = eventToEdit.getStart().getDateTime();
+            }
+
+            event = new CreateEventPostBody(endDate, startDate, endTime, startTime, mTimeZone.getTimeZone(), note);
+        } else {
+            event = new CreateEventPostBody(endDate, startDate, endTime, startTime, mTimeZone.getTimeZone(), note);
+        }
+
+
+        if (startDate == null || endDate == null || startTime == null || endTime == null)
+
+        {
             Log.d(TAG, "handleSubmit: ALL is NULL =====================");
             return;
         }
-        SharedPreferences sharedPreferences = getSharedPreferences(getString(R.string.storedPrefs), Context.MODE_PRIVATE);
-        String userTimeZone = sharedPreferences.getString("timeZone", "");
-        note = getNote();
-        CreateEventPostBody event = new CreateEventPostBody(endDate, startDate, endTime, startTime, userTimeZone, note);
 
         HashMap<String, CreateEventPostBody> postBody = new HashMap<>();
         postBody.put("event", event);
 
-        model.makeEvent(calendarId, sheetId, postBody).observe(this, returnEvent -> {
-            Toast.makeText(this, returnEvent.toString(), Toast.LENGTH_SHORT).show();
-        });
+        if (eventToEdit != null)
+
+        {
+            model.updateEvent(calendarId, eventToEdit.getId(), postBody).observe(this, returnEvent -> {
+                resetAndStartActivity();
+            });
+        } else
+
+        {
+            model.makeEvent(calendarId, sheetId, postBody).observe(this, returnEvent -> {
+                if (mUserTimer != null) {
+                    model.deleteUserTimer();
+                }
+                resetAndStartActivity();
+            });
+        }
+
     }
+    public void cancelCreateEvent() {
+        resetAndStartActivity();
+    }
+
+    public void resetAndStartActivity() {
+        mProgressBar.setVisibility(View.GONE);
+        eventToEditId = null;
+        eventToEdit = null;
+        mUserTimer = null;
+        summaryEditText.setText(summaryPrefix);
+        summaryEditText.setSelection(summaryPrefix.length());
+        startDateEditText.setText("");
+        startTimeEditText.setText("");
+        endDateEditText.setText("");
+        endTimeEditText.setText("");
+
+
+        Intent intent = new Intent(this, MainActivity.class);
+        startActivity(intent);
+    }
+
 
     // To convert in AM PM format
     private String convertTo12HourFormat(int hours, int mins) {
@@ -251,6 +463,14 @@ public class CreateEventActivity extends AppCompatActivity {
                 minutes + " " + am_pm;
     }
 
+    public void toggleBottomSheet() {
+        if (bottomSheetBehavior.getState() != BottomSheetBehavior.STATE_EXPANDED) {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        } else {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        }
+    }
+
 
     public static void hideKeyboard(Activity activity) {
         InputMethodManager imm = (InputMethodManager) activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
@@ -261,5 +481,10 @@ public class CreateEventActivity extends AppCompatActivity {
             view = new View(activity);
         }
         imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 }

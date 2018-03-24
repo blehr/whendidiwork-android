@@ -1,5 +1,9 @@
 package com.brandonlehr.whendidiwork.models;
 
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -8,13 +12,15 @@ import java.io.Serializable;
 /**
  * Created by blehr on 2/12/2018.
  */
-
+@Entity(tableName = "sheets")
 public class Sheet implements Serializable {
     @SerializedName("kind")
     @Expose
     private String kind;
     @SerializedName("id")
     @Expose
+    @PrimaryKey
+    @NonNull
     private String id;
     @SerializedName("name")
     @Expose

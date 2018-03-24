@@ -46,22 +46,3 @@ public class ViewModelFactory implements ViewModelProvider.Factory {
     }
 }
 
-
-//public class ViewModelFactory implements ViewModelProvider.Factory {
-//
-//    private MainActivityViewModel mMainActivityViewModel;
-//
-//    @Inject
-//    public ViewModelFactory(MainActivityViewModel viewModel) {
-//        this.mMainActivityViewModel = viewModel;
-//    }
-//
-//    @NonNull
-//    @Override
-//    public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-//        if (modelClass.isAssignableFrom(MainActivityViewModel.class)) {
-//            return (T) mMainActivityViewModel;
-//        }
-//        throw new IllegalArgumentException("Unknown class name");
-//    }
-//}

@@ -2,20 +2,20 @@ package com.brandonlehr.whendidiwork;
 
 import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.brandonlehr.whendidiwork.models.CreateCalendarPostBody;
+import com.brandonlehr.whendidiwork.models.TimeZone;
 import com.brandonlehr.whendidiwork.viewModels.CreateCalendarViewModel;
 
 import javax.inject.Inject;
@@ -28,6 +28,9 @@ public class CreateCalendarActivity extends AppCompatActivity {
     Button createCalendarButton;
     String sheetNameConstant = "whendidiwork@";
     TextView revealName;
+    TimeZone mTimeZone;
+    boolean mIsLoading = false;
+    ProgressBar mProgressBar;
 
 
     @Inject
@@ -43,7 +46,7 @@ public class CreateCalendarActivity extends AppCompatActivity {
         toolbar.setTitle("Create Calendar");
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        ((Whendidiwork) getApplication()).getGoogleClientComponent().inject(this);
+        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
 
         model = ViewModelProviders.of(this, viewModelFactory).get(CreateCalendarViewModel.class);
 
@@ -51,6 +54,20 @@ public class CreateCalendarActivity extends AppCompatActivity {
         createCalendarButton = findViewById(R.id.create_calendar_button);
         calendarResponse = findViewById(R.id.calendar_reponse);
         revealName = findViewById(R.id.reveal_name);
+        mProgressBar = findViewById(R.id.progressBar2);
+
+
+        model.getTimeZone().observe(this, timeZone -> mTimeZone = timeZone);
+        model.getIsLoading().observe(this, isLoading -> {
+            mIsLoading = isLoading;
+            if (mIsLoading) {
+                mProgressBar.setVisibility(View.VISIBLE);
+                createCalendarButton.setVisibility(View.GONE);
+            } else {
+                mProgressBar.setVisibility(View.GONE);
+                createCalendarButton.setVisibility(View.VISIBLE);
+            }
+        });
 
         createCalendarButton.setOnClickListener(view -> handleCalendarSubmit());
         createCalendarEditText.addTextChangedListener(new TextWatcher() {
@@ -73,20 +90,15 @@ public class CreateCalendarActivity extends AppCompatActivity {
     }
 
     private void handleCalendarSubmit() {
-        String calendarName = createCalendarEditText.getText().toString();
-        if (calendarName.length() != 0) {
-            SharedPreferences sharedPreferences = getSharedPreferences(getString(R.string.storedPrefs), Context.MODE_PRIVATE);
-            String userTimeZone = sharedPreferences.getString("timeZone", "");
-            Log.d(TAG, "handleCalendarSubmit: =================" + userTimeZone);
+        String editTextValue = createCalendarEditText.getText().toString();
+        if (editTextValue.length() != 0) {
+            String calendarName = sheetNameConstant + editTextValue;
+            CreateCalendarPostBody calendarPostBody = new CreateCalendarPostBody(calendarName, mTimeZone.getTimeZone());
 
-            CreateCalendarPostBody calendarPostBody = new CreateCalendarPostBody(calendarName, userTimeZone);
+            model.createCalendar(calendarPostBody);
 
-            model.createCalendar(calendarPostBody).observe(this, calendar -> {
-                calendarResponse.setText(calendar.toString());
-                Intent intent  = new Intent(CreateCalendarActivity.this, MainActivity.class);
-                intent.putExtra("newCalendarId", calendar.getId());
-                startActivity(intent);
-            });
+            Intent intent = new Intent(CreateCalendarActivity.this, MainActivity.class);
+            startActivity(intent);
         }
 
 

@@ -1,7 +1,9 @@
 package com.brandonlehr.whendidiwork.models;
 
 import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
@@ -11,17 +13,19 @@ import java.io.Serializable;
 /**
  * Created by blehr on 2/12/2018.
  */
-@Entity
+@Entity(tableName = "calendars")
 public class Calendar implements Serializable {
     @SerializedName("kind")
     @Expose
     private String kind;
+    @Ignore
     @SerializedName("etag")
     @Expose
     private String etag;
     @SerializedName("id")
     @Expose
     @PrimaryKey
+    @NonNull
     private String id = "";
     @SerializedName("summary")
     @Expose
@@ -34,28 +38,41 @@ public class Calendar implements Serializable {
     private String timeZone;
     @SerializedName("colorId")
     @Expose
+    @Ignore
     private String colorId;
     @SerializedName("backgroundColor")
     @Expose
+    @Ignore
     private String backgroundColor;
     @SerializedName("foregroundColor")
     @Expose
+    @Ignore
     private String foregroundColor;
     @SerializedName("selected")
     @Expose
     private Boolean selected;
     @SerializedName("accessRole")
     @Expose
+    @Ignore
     private String accessRole;
     @SerializedName("location")
     @Expose
     private String location;
     @SerializedName("primary")
     @Expose
-    private Boolean primary;
+    private Boolean primary = false;
     @SerializedName("summaryOverride")
     @Expose
     private String summaryOverride;
+//    private boolean isSelected = false;
+//
+//    public boolean isSelected() {
+//        return isSelected;
+//    }
+//
+//    public void setSelected(boolean selected) {
+//        isSelected = selected;
+//    }
 
     public String getKind() {
         return kind;

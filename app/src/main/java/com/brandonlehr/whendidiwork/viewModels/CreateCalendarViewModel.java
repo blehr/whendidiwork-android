@@ -3,17 +3,14 @@ package com.brandonlehr.whendidiwork.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
-import android.util.Log;
 
-import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.CreateCalendarPostBody;
-import com.brandonlehr.whendidiwork.services.AuthWithServer;
+import com.brandonlehr.whendidiwork.models.TimeZone;
+import com.brandonlehr.whendidiwork.repository.CalendarRepository;
+import com.brandonlehr.whendidiwork.services.ApiCalls;
 
 import javax.inject.Inject;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 
 /**
@@ -23,35 +20,31 @@ import retrofit2.Retrofit;
 public class CreateCalendarViewModel  extends ViewModel {
     private static final String TAG = "CreateCalendarViewModel";
 
-    MutableLiveData<Calendar> mCalendar = new MutableLiveData<>();
-//    private AuthWithServer client = RetrofitClient.getClient(this.getApplication()).create(AuthWithServer.class);
+    private LiveData<TimeZone> mTimeZone;
+    private MutableLiveData<Boolean> isLoading;
 
-    private AuthWithServer client;
+
+    private ApiCalls client;
+    CalendarRepository mCalendarRepository;
 
     @Inject
-    public CreateCalendarViewModel(Retrofit retrofitClient) {
-        client = retrofitClient.create(AuthWithServer.class);
+    public CreateCalendarViewModel(Retrofit retrofitClient, CalendarRepository calendarRepository) {
+        client = retrofitClient.create(ApiCalls.class);
+        mCalendarRepository = calendarRepository;
+        mTimeZone = mCalendarRepository.getTimeZone();
+        isLoading = mCalendarRepository.getIsLoading();
     }
-    public LiveData<Calendar> createCalendar(CreateCalendarPostBody createCalendarPostBody) {
-        goCreateCalendar(createCalendarPostBody);
-        return mCalendar;
+
+    public LiveData<TimeZone> getTimeZone() {
+        return mTimeZone;
     }
-    public void goCreateCalendar(CreateCalendarPostBody createCalendarPostBody) {
+
+    public LiveData<Boolean> getIsLoading() {
+        return isLoading;
+    }
 
 
-        Call<Calendar> createCalendar = client.createCalendar(createCalendarPostBody);
-        createCalendar.enqueue(new Callback<Calendar>() {
-            @Override
-            public void onResponse(Call<Calendar> call, Response<Calendar> response) {
-                if (response.isSuccessful()) {
-                    mCalendar.setValue(response.body());
-                }
-            }
-
-            @Override
-            public void onFailure(Call<Calendar> call, Throwable t) {
-                Log.d(TAG, "onFailure: " + t.getMessage());
-            }
-        });
+    public void createCalendar(CreateCalendarPostBody createCalendarPostBody) {
+        mCalendarRepository.createCalendar(createCalendarPostBody);
     }
 }

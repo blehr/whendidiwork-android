@@ -1,30 +1,31 @@
 package com.brandonlehr.whendidiwork.Dao;
 
+import android.arch.persistence.room.Database;
+import android.arch.persistence.room.RoomDatabase;
+
+import com.brandonlehr.whendidiwork.models.Calendar;
+import com.brandonlehr.whendidiwork.models.Event;
+import com.brandonlehr.whendidiwork.models.SelectedCalendar;
+import com.brandonlehr.whendidiwork.models.SelectedSheet;
+import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.TimeZone;
+import com.brandonlehr.whendidiwork.models.UserResponse;
+import com.brandonlehr.whendidiwork.models.UserTimer;
+
 /**
  * Created by blehr on 3/6/2018.
  */
 
-//@Database(entities = {UserAppValues.class, Calendar.class}, version = 1)
-//public abstract class AppDatabase extends RoomDatabase {
-//
-//    private static AppDatabase INSTANCE;
-//
-//    public abstract UserAppValues userAppValuesDao();
-//    public abstract CalendarDao mCalendarDao();
-//
-//    public static AppDatabase getAppDatabase(Context context) {
-//        if (INSTANCE == null) {
-//            INSTANCE =
-//                    Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "user-database")
-//                            // allow queries on the main thread.
-//                            // Don't do this on a real app! See PersistenceBasicSample for an example.
-//                            .allowMainThreadQueries()
-//                            .build();
-//        }
-//        return INSTANCE;
-//    }
-//
-//    public static void destroyInstance() {
-//        INSTANCE = null;
-//    }
-//}
+@Database(entities = {Calendar.class,
+        Sheet.class,
+        SelectedCalendar.class,
+        SelectedSheet.class,
+        UserResponse.class,
+        Event.class,
+        TimeZone.class,
+        UserTimer.class}, version = 12)
+public abstract class AppDatabase extends RoomDatabase {
+
+    public abstract AppDao getAppDao();
+
+}
