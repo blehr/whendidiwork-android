@@ -91,7 +91,7 @@ public class EventRepository {
         }
 
         @Override
-        protected Void doInBackground(List<Event>[] lists) {
+        protected Void doInBackground(List... lists) {
             mAppDao.deleteAllEvents();
             mAppDao.insertEvents(lists[0]);
             return null;

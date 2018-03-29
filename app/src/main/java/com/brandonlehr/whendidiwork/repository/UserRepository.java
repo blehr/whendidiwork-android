@@ -18,7 +18,7 @@ import retrofit2.Retrofit;
 public class UserRepository {
     private static final String TAG = "UserRepository";
 
-    private LiveData<UserResponse> user;
+    private LiveData<UserResponse> mUser;
     private LiveData<UserTimer> mUserTimer;
 
     private ApiCalls client;
@@ -27,7 +27,7 @@ public class UserRepository {
     public UserRepository(Retrofit retrofitClient, AppDao appDao) {
         client = retrofitClient.create(ApiCalls.class);
         mAppDao = appDao;
-        user = mAppDao.getUser();
+        mUser = mAppDao.getUser();
         mUserTimer = mAppDao.getUserTimer();
     }
 
@@ -49,6 +49,7 @@ public class UserRepository {
         InsertUserTimerTask(AppDao appDao) {
             asyncAppDao = appDao;
         }
+
         @Override
         protected Void doInBackground(UserTimer... userTimers) {
             Log.d(TAG, "doInBackground: insert userTimer " + userTimers[0].toString());
@@ -73,13 +74,31 @@ public class UserRepository {
     }
 
 
-
     public LiveData<UserResponse> getUser() {
-        return user;
+        return mUser;
     }
 
     public void insertUser(UserResponse user) {
-        new InsertUserTask(mAppDao).execute(user);
+        Log.d(TAG, "insertUser: user.getId " + user.getGoogle().getId());
+        if (mUser.getValue() != null && !mUser.getValue().getGoogle().getId().equals(user.getGoogle().getId())) {
+            new DeleteUserTask(mAppDao).execute(user);
+        } else {
+            new InsertUserTask(mAppDao).execute(user);
+        }
+    }
+
+    private static class DeleteUserTask extends AsyncTask<UserResponse, Void, Void> {
+        private AppDao mAppDao;
+
+        DeleteUserTask(AppDao appDao) {
+            mAppDao = appDao;
+        }
+
+        @Override
+        protected Void doInBackground(UserResponse... userResponses) {
+            mAppDao.deleteOldUserInsertNew(userResponses[0]);
+            return null;
+        }
     }
 
     private static class InsertUserTask extends AsyncTask<UserResponse, Void, Void> {
@@ -88,9 +107,11 @@ public class UserRepository {
         InsertUserTask(AppDao appDao) {
             asyncAppDao = appDao;
         }
+
         @Override
         protected Void doInBackground(UserResponse... userResponses) {
             asyncAppDao.insertUser(userResponses[0]);
+            Log.d(TAG, "doInBackground: inserting user");
             return null;
         }
     }

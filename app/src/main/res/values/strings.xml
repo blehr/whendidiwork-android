@@ -74,5 +74,10 @@
     <string name="whendidiwork_questionmark">whendidiwork?</string>
     <string name="no_sheets">No Sheets</string>
     <string name="need_to_create_a_sheet">To begin using whendidiwork, first create a new Google Sheet to record your times. Start by clicking the overflow menu in the appbar and selecting Create Sheet.</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="clear">Clear</string>
+    <string name="set">Set</string>
+    <string name="enable">enable</string>
+    <string name="disable">Disabled</string>
 
 </resources>

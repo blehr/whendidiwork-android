@@ -5,6 +5,7 @@ import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Insert;
 import android.arch.persistence.room.OnConflictStrategy;
 import android.arch.persistence.room.Query;
+import android.arch.persistence.room.Transaction;
 
 import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.Event;
@@ -22,84 +23,105 @@ import java.util.List;
  */
 
 @Dao
-public interface AppDao {
+public abstract class AppDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertUser(UserResponse user);
+    public abstract void insertUser(UserResponse user);
 
     @Query("SELECT * FROM user")
-    LiveData<UserResponse> getUser();
+    public abstract LiveData<UserResponse> getUser();
+
+    @Query("Delete FROM user")
+    public abstract void deleteUser();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertCalendars(List<Calendar> calendars);
+    public abstract void insertCalendars(List<Calendar> calendars);
 
     @Query("DELETE FROM calendars")
-    void deleteAllCalendars();
+    public abstract void deleteAllCalendars();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertCalendar(Calendar calendar);
+    public abstract void insertCalendar(Calendar calendar);
 
     @Query("SELECT * FROM calendars")
-    LiveData<List<Calendar>> getAllCalendars();
+    public abstract LiveData<List<Calendar>> getAllCalendars();
 
     @Query("SELECT * FROM calendars WHERE id=:id")
-    Calendar getCalendar(String id);
+    public abstract Calendar getCalendar(String id);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertSheets(List<Sheet> sheets);
+    public abstract void insertSheets(List<Sheet> sheets);
 
     @Query("SELECT * FROM sheets")
-    LiveData<List<Sheet>> getAllSheets();
+    public abstract LiveData<List<Sheet>> getAllSheets();
 
     @Query("SELECT * FROM sheets WHERE id=:id")
-    Sheet getSheet(String id);
+    public abstract Sheet getSheet(String id);
 
     @Query("SELECT * FROM selected_sheet")
-    LiveData<Sheet> getSelectedSheet();
+    public abstract LiveData<Sheet> getSelectedSheet();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertSheet(Sheet sheet);
+    public abstract void insertSheet(Sheet sheet);
+
+    @Query("DELETE FROM selected_sheet")
+    public abstract void deleteSelectedSheet();
 
     @Query("DELETE FROM sheets")
-    void deleteAllSheets();
+    public abstract void deleteAllSheets();
 
     @Query("SELECT * FROM selected_calendar")
-    LiveData<Calendar> getSelectedCalendar();
+    public abstract LiveData<Calendar> getSelectedCalendar();
+
+    @Query("DELETE FROM selected_calendar")
+    public abstract void deleteSelectedCalendar();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void updateSelectedSheet(SelectedSheet sheet);
+    public abstract void updateSelectedSheet(SelectedSheet sheet);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void updateSelectedCalendar(SelectedCalendar calendar);
+    public abstract void updateSelectedCalendar(SelectedCalendar calendar);
 
     @Query("DELETE FROM events")
-    void deleteAllEvents();
+    public abstract void deleteAllEvents();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertEvents(List<Event> events);
+    public abstract void insertEvents(List<Event> events);
 
     @Query("SELECT * FROM events")
-    LiveData<List<Event>> getEvents();
+    public abstract LiveData<List<Event>> getEvents();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertNewEvent(Event event);
+    public abstract void insertNewEvent(Event event);
 
     @Query("SELECT * FROM events WHERE id=:id")
-    LiveData<Event> getEventById(String id);
+    public abstract LiveData<Event> getEventById(String id);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void setTimeZone(TimeZone timeZone);
+    public abstract void setTimeZone(TimeZone timeZone);
 
     @Query("SELECT * FROM timeZone")
-    LiveData<TimeZone> getTimeZone();
+    public abstract LiveData<TimeZone> getTimeZone();
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertUserTimer(UserTimer userTimer);
+    public abstract void insertUserTimer(UserTimer userTimer);
 
     @Query("SELECT * FROM userTimer")
-    LiveData<UserTimer> getUserTimer();
+    public abstract LiveData<UserTimer> getUserTimer();
 
     @Query("DELETE FROM userTimer WHERE timerId=1")
-    void deleteUserTimer();
+    public abstract void deleteUserTimer();
+
+    @Transaction
+    public void deleteOldUserInsertNew(UserResponse user) {
+        deleteUser();
+        deleteSelectedCalendar();
+        deleteSelectedSheet();
+        deleteUserTimer();
+        deleteAllCalendars();
+        deleteAllSheets();
+        deleteAllEvents();
+        insertUser(user);
+    }
 
 }

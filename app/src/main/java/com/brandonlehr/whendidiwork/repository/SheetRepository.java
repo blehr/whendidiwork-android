@@ -39,7 +39,7 @@ public class SheetRepository {
         mSheets = mAppDao.getAllSheets();
         mSelectedSheet = mAppDao.getSelectedSheet();
         isLoading.setValue(false);
-        fetchFiles();
+//        fetchFiles();
     }
 
     public LiveData<List<Sheet>> getSheets() {

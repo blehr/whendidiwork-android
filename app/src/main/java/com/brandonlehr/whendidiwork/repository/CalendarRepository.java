@@ -44,7 +44,7 @@ public class CalendarRepository {
         mSelectedCalendar = mAppDao.getSelectedCalendar();
         mTimeZone = mAppDao.getTimeZone();
         isLoading.setValue(false);
-        fetchCalendarList();
+//        fetchCalendarList();
     }
 
     public LiveData<List<Calendar>> getCalendars() {

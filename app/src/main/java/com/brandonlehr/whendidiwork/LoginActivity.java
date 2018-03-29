@@ -147,10 +147,12 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
 
     @Override
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
-        mUserRepository.insertUser(response.body());
+        if (response.isSuccessful()) {
+            mUserRepository.insertUser(response.body());
 
-        Intent intent = new Intent(this, MainActivity.class);
-        startActivity(intent);
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
+        }
     }
 
     @Override

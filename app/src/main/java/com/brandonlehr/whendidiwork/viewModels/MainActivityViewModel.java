@@ -52,6 +52,11 @@ public class MainActivityViewModel extends ViewModel {
         mTimeZone = mCalendarRepository.getTimeZone();
     }
 
+    public void InitialDataLoad() {
+        mCalendarRepository.fetchCalendarList();
+        mSheetRepository.fetchFiles();
+    }
+
     public LiveData<List<Calendar>> retrieveCalendars() {
         return mCalendars;
     }

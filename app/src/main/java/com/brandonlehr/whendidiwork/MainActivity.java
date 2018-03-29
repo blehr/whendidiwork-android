@@ -11,6 +11,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -25,14 +26,19 @@ import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.Sheet;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.viewModels.MainActivityViewModel;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.squareup.picasso.Picasso;
 
 import java.util.List;
 
 import javax.inject.Inject;
 
+import de.hdodenhof.circleimageview.CircleImageView;
 import uk.co.deanwild.materialshowcaseview.MaterialShowcaseSequence;
 import uk.co.deanwild.materialshowcaseview.MaterialShowcaseView;
 import uk.co.deanwild.materialshowcaseview.ShowcaseConfig;
@@ -61,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements
     private Sheet mSheet = null;
     private String sheetId;
     private String calendarId;
+    private AdView mAdView;
 
     private static final String SHOWCASE_MainActivity_ID = "simple example";
 
@@ -86,11 +93,28 @@ public class MainActivity extends AppCompatActivity implements
 
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
 
+        MobileAds.initialize(this, Constants.ADMOB_ID);
+
         if (account == null) {
             Intent signInIntent = new Intent(this, LoginActivity.class);
             startActivity(signInIntent);
-        }
+            return;
+        } else {
+            Log.d(TAG, "onCreate: account ========= " + account.getDisplayName());
 
+            model.getUser().observe(this, userResponse -> {
+                mUser = userResponse;
+
+                CircleImageView profileImage = findViewById(R.id.profileImage);
+
+                if (mUser != null) {
+                    Picasso.get().load(mUser.getGoogle().getProfileImg()).resize(125, 125).centerCrop().into(profileImage);
+                } else {
+                    profileImage.setImageResource(R.drawable.ic_action_event);
+                }
+            });
+
+        }
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fabLayout1 = (LinearLayout) findViewById(R.id.fabLayout1);
@@ -105,19 +129,35 @@ public class MainActivity extends AppCompatActivity implements
         calendarSelect = findViewById(R.id.calendarSelect);
         fragmentHeading = findViewById(R.id.fragment_heading);
 
+        mAdView = findViewById(R.id.adView1);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
+
+        model.InitialDataLoad();
+
         model.getUser().observe(this, userResponse -> mUser = userResponse);
+
+        model.retrieveSheets().observe(this, sheets -> mSheets = sheets);
+
+        model.retrieveCalendars().observe(this, calendars -> mCalendars = calendars);
+
         model.retrieveSelectedCalendar().observe(this, calendar -> {
-            if (calendar == null) return;
-            calendarSelect.setText(calendar.getSummary());
-            model.retrieveEvents(calendar.getId());
+            if (calendar == null) {
+                calendarSelect.setText("");
+                model.retrieveEvents("");
+            } else {
+                calendarSelect.setText(calendar.getSummary());
+                model.retrieveEvents(calendar.getId());
+            }
         });
 
         model.retrieveSelectedSheet().observe(this, sheet -> {
-            if (sheet == null) return;
-            sheetSelect.setText(sheet.getName());
+            if (sheet == null) {
+                sheetSelect.setText("");
+            } else {
+                sheetSelect.setText(sheet.getName());
+            }
         });
-
-        model.retrieveSheets().observe(this, sheets -> mSheets = sheets);
 
         calendarSelect.setOnClickListener(view -> {
             showCalendarListFragment();
@@ -183,6 +223,24 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
+    private boolean isCalendarInList(List<Calendar> calendars, Calendar cal) {
+        for (Calendar c : calendars) {
+            if (c.getId().equals(cal.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isSheetInList(List<Sheet> sheets, Sheet sheet) {
+        for (Sheet s : sheets) {
+            if (s.getId().equals(sheet.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void showCalendarListFragment() {
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
         Fragment fragment = CalendarListFragment.newInstance(1);
@@ -236,7 +294,8 @@ public class MainActivity extends AppCompatActivity implements
         fabLayout1.animate().translationY(0);
         fabLayout2.animate().translationY(0).setListener(new Animator.AnimatorListener() {
             @Override
-            public void onAnimationStart(Animator animator) {}
+            public void onAnimationStart(Animator animator) {
+            }
 
             @Override
             public void onAnimationEnd(Animator animator) {
@@ -245,11 +304,14 @@ public class MainActivity extends AppCompatActivity implements
                     fabLayout2.setVisibility(View.GONE);
                 }
             }
-            @Override
-            public void onAnimationCancel(Animator animator) {}
 
             @Override
-            public void onAnimationRepeat(Animator animator) {}
+            public void onAnimationCancel(Animator animator) {
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animator) {
+            }
         });
     }
 
@@ -264,7 +326,9 @@ public class MainActivity extends AppCompatActivity implements
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.settings:
-                Toast.makeText(this, "Settings", Toast.LENGTH_LONG).show();
+//                Toast.makeText(this, "Settings", Toast.LENGTH_LONG).show();
+                Intent mapIntent = new Intent(this, MapsActivity.class);
+                startActivity(mapIntent);
                 return true;
             case R.id.setting_sign_out:
                 mGoogleSignInClient.signOut();
