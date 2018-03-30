@@ -312,6 +312,8 @@ public class CreateEventActivity extends AppCompatActivity {
             DateTime dateTime = new DateTime(c);
             startTime = fmt.print(dateTime);
             String time = convertTo12HourFormat(hourOfDay, minute);
+
+            Log.d(TAG, "onTimeSet: START hour: " + hourOfDay + " minute: " + minute);
             startTimeEditText.setText(time);
         }
     };
@@ -340,6 +342,8 @@ public class CreateEventActivity extends AppCompatActivity {
             DateTime dateTime = new DateTime(c);
             endTime = fmt.print(dateTime);
             String time = convertTo12HourFormat(hourOfDay, minute);
+
+            Log.d(TAG, "onTimeSet: END hour: " + hourOfDay + " minute: " + minute);
             endTimeEditText.setText(time);
         }
     };

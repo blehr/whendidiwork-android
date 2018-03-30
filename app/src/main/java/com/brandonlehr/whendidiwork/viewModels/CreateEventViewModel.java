@@ -123,6 +123,7 @@ public class CreateEventViewModel extends ViewModel {
                     mEventRepository.insertNewEvent(response.body());
                 } else {
                     Log.d(TAG, "onResponse: create event NOT SUCCESSFULL " + response.errorBody());
+                    Log.d(TAG, "onResponse: create event NOT SUCCESSFULL " + response.raw());
                     errorResponse.setValue(response);
                 }
             }

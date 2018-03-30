@@ -10,6 +10,7 @@ import com.franmontiel.persistentcookiejar.cache.SetCookieCache;
 import com.franmontiel.persistentcookiejar.persistence.SharedPrefsCookiePersistor;
 
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
@@ -31,7 +32,8 @@ import retrofit2.converter.scalars.ScalarsConverterFactory;
 @Module(includes = AppModule.class)
 public class RetrofitClientModule {
 
-    public RetrofitClientModule() {}
+    public RetrofitClientModule() {
+    }
 
 
     @Singleton
@@ -59,7 +61,7 @@ public class RetrofitClientModule {
 
     @Singleton
     @Provides
-    public SharedPrefsCookiePersistor mSharedPrefsCookiePersistor(@Named("application_context")Application context) {
+    public SharedPrefsCookiePersistor mSharedPrefsCookiePersistor(@Named("application_context") Application context) {
         return new SharedPrefsCookiePersistor(context);
     }
 
@@ -67,6 +69,8 @@ public class RetrofitClientModule {
     @Provides
     public OkHttpClient httpClient(ConnectionSpec spec, HttpLoggingInterceptor logging, ClearableCookieJar cookieJar) {
         return new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
                 .addInterceptor(logging)
                 .connectionSpecs(Collections.singletonList(spec))
                 .cookieJar(cookieJar)
