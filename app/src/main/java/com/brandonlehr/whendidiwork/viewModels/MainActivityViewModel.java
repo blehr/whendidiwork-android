@@ -6,6 +6,7 @@ import android.arch.lifecycle.ViewModel;
 import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.TimeZone;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.repository.CalendarRepository;
@@ -31,6 +32,7 @@ public class MainActivityViewModel extends ViewModel {
     private LiveData<Sheet> mSelectedSheet;
     private LiveData<UserResponse> mUser;
     private LiveData<TimeZone> mTimeZone;
+    private LiveData<SigninTime> mSigninTime;
 
     CalendarRepository mCalendarRepository;
     SheetRepository mSheetRepository;
@@ -50,11 +52,24 @@ public class MainActivityViewModel extends ViewModel {
         mUser = mUserRepository.getUser();
         mEvents = mEventRepository.subscribeToEvents();
         mTimeZone = mCalendarRepository.getTimeZone();
+        mSigninTime = mUserRepository.getSigninTime();
     }
 
     public void InitialDataLoad() {
         mCalendarRepository.fetchCalendarList();
         mSheetRepository.fetchFiles();
+    }
+
+    public LiveData<SigninTime> getSigninTime() {
+        return mSigninTime;
+    }
+
+    public void insertSigninTime(SigninTime timestamp) {
+        mUserRepository.insertSigninTime(timestamp);
+    }
+
+    public void deleteSigninTime() {
+        mUserRepository.deleteSigninTime();
     }
 
     public LiveData<List<Calendar>> retrieveCalendars() {

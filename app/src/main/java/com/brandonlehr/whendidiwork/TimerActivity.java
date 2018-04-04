@@ -9,6 +9,7 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.format.DateUtils;
@@ -17,12 +18,28 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
+import com.brandonlehr.whendidiwork.models.TokenObject;
+import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.models.UserTimer;
+import com.brandonlehr.whendidiwork.services.ApiCalls;
 import com.brandonlehr.whendidiwork.viewModels.CreateEventViewModel;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.Task;
 
 import javax.inject.Inject;
 
-public class TimerActivity extends AppCompatActivity {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+
+public class TimerActivity extends AppCompatActivity implements Callback<UserResponse> {
     private static final String TAG = "TimerActivity";
 
 
@@ -31,12 +48,23 @@ public class TimerActivity extends AppCompatActivity {
     TextView endTimeTV;
     TextView elapsedTimeTV;
     Button timerButton, clearButton;
+    private SigninTime mSigninTime;
+    private ApiCalls client;
+
 
     Runnable updater;
     final Handler timerHandler = new Handler();
 
     @Inject
     ViewModelProvider.Factory viewModelFactory;
+
+    @Inject
+    Retrofit mRetrofitClient;
+
+    @Inject
+    GoogleSignInClient mGoogleSignInClient;
+
+
 
     MyTimerService mService;
     boolean mBound = false;
@@ -57,6 +85,10 @@ public class TimerActivity extends AppCompatActivity {
         ((Whendidiwork) getApplication()).getDIComponent().inject(this);
         model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
 
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+
+        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
+
         startTimeTV = findViewById(R.id.start_time_tv);
         endTimeTV = findViewById(R.id.end_time_tv);
         elapsedTimeTV = findViewById(R.id.elapsed_time_tv);
@@ -68,6 +100,67 @@ public class TimerActivity extends AppCompatActivity {
         timerButton.setOnClickListener(view -> {
             handleTimerButtonClick();
         });
+
+        // if null send to login
+        if (account == null) {
+            Intent signInIntent = new Intent(this, LoginActivity.class);
+            startActivity(signInIntent);
+            return;
+        }
+
+        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+            attemptSilentLogin();
+        }
+    }
+
+    private void attemptSilentLogin() {
+        mGoogleSignInClient.silentSignIn()
+                .addOnCompleteListener(this, new OnCompleteListener<GoogleSignInAccount>() {
+                    @Override
+                    public void onComplete(@NonNull Task<GoogleSignInAccount> task) {
+                        Log.d(TAG, "onComplete: Attempt to silent login ================= ");
+                        handleSignInResult(task);
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        signOutGoToLogin();
+                    }
+                });
+    }
+
+    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+
+            String authCode = account.getServerAuthCode();
+
+            Call<UserResponse> call = client.sendToken(new TokenObject(authCode));
+            call.enqueue(TimerActivity.this);
+        } catch (ApiException e) {
+            Log.w(TAG, "signInResult:failed code=" + e.getStatusCode() + ", " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
+        if (response.isSuccessful()) {
+            model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+        }
+    }
+
+    @Override
+    public void onFailure(Call<UserResponse> call, Throwable t) {
+        signOutGoToLogin();
+    }
+
+    private void signOutGoToLogin() {
+        mGoogleSignInClient.signOut();
+        model.deleteSigninTime();
+        Intent intent = new Intent(this, LoginActivity.class);
+        startActivity(intent);
     }
 
     void handleTimerButtonClick() {

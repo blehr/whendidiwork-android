@@ -113,8 +113,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mGeofencingClient = LocationServices.getGeofencingClient(this);
 
-        getLocationPermission();
-
     }
 
     private void getLocationPermission() {

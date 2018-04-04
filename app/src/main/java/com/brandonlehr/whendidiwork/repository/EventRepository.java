@@ -52,16 +52,17 @@ public class EventRepository {
             @Override
             public void onResponse(Call<List<SheetDeleteResponse>> call, Response<List<SheetDeleteResponse>> response) {
                 if (response.isSuccessful()) {
-
+                    Log.d(TAG, "onResponse: successful delete " + response.body());
                 } else {
-
+                    Log.d(TAG, "onResponse: not successful delete " + response.body());
                 }
                 fetchEvents(calendarId);
             }
 
             @Override
             public void onFailure(Call<List<SheetDeleteResponse>> call, Throwable t) {
-                Log.d(TAG, "onFailure: delete event failure" + t.getMessage());
+                Log.d(TAG, "onFailure: delete event failure" + t.getMessage() + ", " + t.toString());
+                fetchEvents(calendarId);
             }
         });
     }

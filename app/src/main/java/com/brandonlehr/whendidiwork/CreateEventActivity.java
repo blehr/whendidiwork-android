@@ -8,6 +8,7 @@ import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.BottomSheetBehavior;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -28,9 +29,20 @@ import android.widget.TimePicker;
 import com.brandonlehr.whendidiwork.models.CreateEventPostBody;
 import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.TimeZone;
+import com.brandonlehr.whendidiwork.models.TokenObject;
+import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.models.UserTimer;
+import com.brandonlehr.whendidiwork.services.ApiCalls;
 import com.brandonlehr.whendidiwork.viewModels.CreateEventViewModel;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.Task;
 
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
@@ -42,7 +54,12 @@ import java.util.Objects;
 
 import javax.inject.Inject;
 
-public class CreateEventActivity extends AppCompatActivity {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+
+public class CreateEventActivity extends AppCompatActivity implements Callback<UserResponse> {
     private static final String TAG = "CreateEventActivity";
 
     private EditText startDateEditText;
@@ -82,9 +99,18 @@ public class CreateEventActivity extends AppCompatActivity {
     private LinearLayout bottomSheetTitleLL;
     BottomSheetBehavior bottomSheetBehavior;
     UserTimer mUserTimer;
+    private SigninTime mSigninTime;
+    private ApiCalls client;
+
 
     @Inject
     ViewModelProvider.Factory viewModelFactory;
+
+    @Inject
+    Retrofit mRetrofitClient;
+
+    @Inject
+    GoogleSignInClient mGoogleSignInClient;
 
     CreateEventViewModel model;
 
@@ -101,6 +127,22 @@ public class CreateEventActivity extends AppCompatActivity {
 
         ((Whendidiwork) getApplication()).getDIComponent().inject(this);
         model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
+
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+
+        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
+
+        // if null send to login
+        if (account == null) {
+            Intent signInIntent = new Intent(this, LoginActivity.class);
+            startActivity(signInIntent);
+            return;
+        }
+
+        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+            attemptSilentLogin();
+        }
 
         Intent initiatingIntent = getIntent();
         if (initiatingIntent.hasExtra("EVENT_ID_TO_EDIT")) {
@@ -121,10 +163,12 @@ public class CreateEventActivity extends AppCompatActivity {
 
         model.getTimeZone().observe(this, timeZone -> mTimeZone = timeZone);
         model.getSelectedCalendar().observe(this, calendar -> {
+            if (calendar == null) return;
             mSelectedCalendar = calendar;
             calendarId = mSelectedCalendar.getId();
         });
         model.getSelectedSheet().observe(this, sheet -> {
+            if (sheet == null) return;
             mSelectedSheet = sheet;
             sheetId = mSelectedSheet.getId();
             summaryPrefix = mSelectedSheet.getName().substring(12) + " ";
@@ -191,26 +235,78 @@ public class CreateEventActivity extends AppCompatActivity {
         endTimeEditText.setOnClickListener(view -> handleEndTimeClick());
         submitButton.setOnClickListener(view -> handleSubmit());
         cancelButton.setOnClickListener(view -> cancelCreateEvent());
-        summaryEditText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                if (s.toString().length() < summaryPrefix.length()) {
-                    s.replace(0, s.length(), summaryPrefix);
+        if (summaryPrefix != null) {
+            summaryEditText.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
                 }
-            }
-        });
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    if (s.toString().length() < summaryPrefix.length()) {
+                        s.replace(0, s.length(), summaryPrefix);
+                    }
+                }
+            });
+        }
+
     }
 
     private DateTime convertToDateTime(String dateString) {
         return new DateTime(dateString);
+    }
+
+    private void attemptSilentLogin() {
+        mGoogleSignInClient.silentSignIn()
+                .addOnCompleteListener(this, new OnCompleteListener<GoogleSignInAccount>() {
+                    @Override
+                    public void onComplete(@NonNull Task<GoogleSignInAccount> task) {
+                        Log.d(TAG, "onComplete: Attempt to silent login ================= ");
+                        handleSignInResult(task);
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        signOutGoToLogin();
+                    }
+                });
+    }
+
+    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+
+            String authCode = account.getServerAuthCode();
+
+            Call<UserResponse> call = client.sendToken(new TokenObject(authCode));
+            call.enqueue(CreateEventActivity.this);
+        } catch (ApiException e) {
+            Log.w(TAG, "signInResult:failed code=" + e.getStatusCode() + ", " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
+        if (response.isSuccessful()) {
+            model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+        }
+    }
+
+    @Override
+    public void onFailure(Call<UserResponse> call, Throwable t) {
+        signOutGoToLogin();
+    }
+
+    private void signOutGoToLogin() {
+        mGoogleSignInClient.signOut();
+        model.deleteSigninTime();
+        Intent intent = new Intent(this, LoginActivity.class);
+        startActivity(intent);
     }
 
     private void prepareEventToEdit(Event event) {
@@ -395,6 +491,17 @@ public class CreateEventActivity extends AppCompatActivity {
 
         {
             Log.d(TAG, "handleSubmit: ALL is NULL =====================");
+            Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Are all Dates and Times Set?", Snackbar.LENGTH_INDEFINITE);
+//            View view = errorSnackbar.getView();
+//            TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
+            errorSnackbar.setAction("Dismiss", new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    errorSnackbar.dismiss();
+                }
+            });
+            mProgressBar.setVisibility(View.GONE);
+            errorSnackbar.show();
             return;
         }
 
@@ -410,6 +517,38 @@ public class CreateEventActivity extends AppCompatActivity {
         } else
 
         {
+            if (sheetId == null) {
+                Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Must have a Sheet selected to create an event", Snackbar.LENGTH_INDEFINITE);
+//                View view = errorSnackbar.getView();
+//                TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
+//                tv.setTextColor(Color.RED);
+                errorSnackbar.setAction("Select Sheet", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent goToHomeIntent = new Intent(CreateEventActivity.this, MainActivity.class);
+                        startActivity(goToHomeIntent);
+                    }
+                });
+                mProgressBar.setVisibility(View.GONE);
+                errorSnackbar.show();
+                return;
+            }
+            if (calendarId == null) {
+                Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Must have a Calendar selected to create an event", Snackbar.LENGTH_INDEFINITE);
+//                View view = errorSnackbar.getView();
+//                TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
+//                tv.setTextColor(Color.RED);
+                errorSnackbar.setAction("Select Calendar", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent goToHomeIntent = new Intent(CreateEventActivity.this, MainActivity.class);
+                        startActivity(goToHomeIntent);
+                    }
+                });
+                mProgressBar.setVisibility(View.GONE);
+                errorSnackbar.show();
+                return;
+            }
             model.makeEvent(calendarId, sheetId, postBody).observe(this, returnEvent -> {
                 if (mUserTimer != null) {
                     model.deleteUserTimer();
@@ -419,6 +558,7 @@ public class CreateEventActivity extends AppCompatActivity {
         }
 
     }
+
     public void cancelCreateEvent() {
         resetAndStartActivity();
     }

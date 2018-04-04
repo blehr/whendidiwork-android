@@ -8,6 +8,7 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.TokenObject;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.repository.UserRepository;
@@ -149,6 +150,7 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
         if (response.isSuccessful()) {
             mUserRepository.insertUser(response.body());
+            mUserRepository.insertSigninTime(new SigninTime(System.currentTimeMillis()));
 
             Intent intent = new Intent(this, MainActivity.class);
             startActivity(intent);
@@ -167,6 +169,7 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
                     public void onComplete(@NonNull Task<Void> task) {
                         // ...
                         Log.d(TAG, "onComplete: SIGNOUT =========================================");
+                        mUserRepository.deleteSigninTime();
                     }
                 });
     }

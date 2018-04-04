@@ -1,10 +1,12 @@
 package com.brandonlehr.whendidiwork;
 
 import android.animation.Animator;
+import android.app.Activity;
 import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -24,7 +26,10 @@ import android.widget.Toast;
 import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
+import com.brandonlehr.whendidiwork.models.TokenObject;
 import com.brandonlehr.whendidiwork.models.UserResponse;
+import com.brandonlehr.whendidiwork.services.ApiCalls;
 import com.brandonlehr.whendidiwork.viewModels.MainActivityViewModel;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
@@ -32,6 +37,10 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.Task;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
@@ -39,6 +48,10 @@ import java.util.List;
 import javax.inject.Inject;
 
 import de.hdodenhof.circleimageview.CircleImageView;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 import uk.co.deanwild.materialshowcaseview.MaterialShowcaseSequence;
 import uk.co.deanwild.materialshowcaseview.MaterialShowcaseView;
 import uk.co.deanwild.materialshowcaseview.ShowcaseConfig;
@@ -46,7 +59,8 @@ import uk.co.deanwild.materialshowcaseview.ShowcaseConfig;
 public class MainActivity extends AppCompatActivity implements
         CalendarListFragment.OnListFragmentInteractionListener,
         SheetListFragment.OnListFragmentInteractionListener,
-        EventListFragment.OnListFragmentInteractionListener {
+        EventListFragment.OnListFragmentInteractionListener,
+        Callback<UserResponse> {
     private static final String TAG = "MainActivity";
 
     private Button calendarSelect;
@@ -68,6 +82,8 @@ public class MainActivity extends AppCompatActivity implements
     private String sheetId;
     private String calendarId;
     private AdView mAdView;
+    private SigninTime mSigninTime;
+    private ApiCalls client;
 
     private static final String SHOWCASE_MainActivity_ID = "simple example";
 
@@ -76,6 +92,9 @@ public class MainActivity extends AppCompatActivity implements
 
     @Inject
     ViewModelProvider.Factory viewModelFactory;
+
+    @Inject
+    Retrofit mRetrofitClient;
 
     MainActivityViewModel model;
 
@@ -91,30 +110,38 @@ public class MainActivity extends AppCompatActivity implements
         ((Whendidiwork) getApplication()).getDIComponent().inject(this);
         model = ViewModelProviders.of(this, viewModelFactory).get(MainActivityViewModel.class);
 
+        client = mRetrofitClient.create(ApiCalls.class);
+
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
 
         MobileAds.initialize(this, Constants.ADMOB_ID);
 
+        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
+
+        // if null send to login
         if (account == null) {
             Intent signInIntent = new Intent(this, LoginActivity.class);
             startActivity(signInIntent);
             return;
-        } else {
-            Log.d(TAG, "onCreate: account ========= " + account.getDisplayName());
-
-            model.getUser().observe(this, userResponse -> {
-                mUser = userResponse;
-
-                CircleImageView profileImage = findViewById(R.id.profileImage);
-
-                if (mUser != null) {
-                    Picasso.get().load(mUser.getGoogle().getProfileImg()).resize(125, 125).centerCrop().into(profileImage);
-                } else {
-                    profileImage.setImageResource(R.drawable.ic_action_event);
-                }
-            });
-
         }
+
+        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+            attemptSilentLogin();
+        }
+
+        model.getUser().observe(this, userResponse -> {
+            mUser = userResponse;
+
+            CircleImageView profileImage = findViewById(R.id.profileImage);
+
+            if (mUser != null) {
+                Picasso.get().load(mUser.getGoogle().getProfileImg()).resize(125, 125).centerCrop().into(profileImage);
+            } else {
+                profileImage.setImageResource(R.drawable.ic_action_event);
+            }
+        });
+
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fabLayout1 = (LinearLayout) findViewById(R.id.fabLayout1);
@@ -198,6 +225,55 @@ public class MainActivity extends AppCompatActivity implements
 //        MaterialShowcaseView.resetSingleUse(this, SHOWCASE_MainActivity_ID);
 
         presentShowcaseSequence();
+    }
+
+    private void attemptSilentLogin() {
+        mGoogleSignInClient.silentSignIn()
+                .addOnCompleteListener(this, new OnCompleteListener<GoogleSignInAccount>() {
+                    @Override
+                    public void onComplete(@NonNull Task<GoogleSignInAccount> task) {
+                        Log.d(TAG, "onComplete: Attempt to silent login ================= ");
+                        handleSignInResult(task);
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        signOutGoToLogin();
+                    }
+                });
+    }
+
+    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+
+            String authCode = account.getServerAuthCode();
+
+            Call<UserResponse> call = client.sendToken(new TokenObject(authCode));
+            call.enqueue(MainActivity.this);
+        } catch (ApiException e) {
+            Log.w(TAG, "signInResult:failed code=" + e.getStatusCode() + ", " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
+        if (response.isSuccessful()) {
+            model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+        }
+    }
+
+    @Override
+    public void onFailure(Call<UserResponse> call, Throwable t) {
+        signOutGoToLogin();
+    }
+
+    private void signOutGoToLogin() {
+        mGoogleSignInClient.signOut();
+        model.deleteSigninTime();
+        Intent intent = new Intent(this, LoginActivity.class);
+        startActivity(intent);
     }
 
     @Override
@@ -326,14 +402,11 @@ public class MainActivity extends AppCompatActivity implements
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.settings:
-//                Toast.makeText(this, "Settings", Toast.LENGTH_LONG).show();
                 Intent mapIntent = new Intent(this, MapsActivity.class);
                 startActivity(mapIntent);
                 return true;
             case R.id.setting_sign_out:
-                mGoogleSignInClient.signOut();
-                Intent intent = new Intent(this, LoginActivity.class);
-                startActivity(intent);
+                signOutGoToLogin();
                 return true;
             case R.id.createCalendar:
                 Intent createCalendarIntent = new Intent(this, CreateCalendarActivity.class);

@@ -161,6 +161,7 @@ public class EventListFragment extends Fragment {
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
                 Event swipedEvent = mEvents.get(position);
+                Log.d(TAG, "onSwiped: SwipedEvent " + swipedEvent.toString());
                 if (direction == ItemTouchHelper.LEFT) {
                     adapter.remove(position);
                     handleUndoSnackbar(position, swipedEvent);

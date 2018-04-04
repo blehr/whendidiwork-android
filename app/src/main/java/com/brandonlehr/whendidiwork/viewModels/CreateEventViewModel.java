@@ -9,6 +9,7 @@ import com.brandonlehr.whendidiwork.models.Calendar;
 import com.brandonlehr.whendidiwork.models.CreateEventPostBody;
 import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.TimeZone;
 import com.brandonlehr.whendidiwork.models.UserTimer;
 import com.brandonlehr.whendidiwork.repository.CalendarRepository;
@@ -46,6 +47,7 @@ public class CreateEventViewModel extends ViewModel {
     SheetRepository mSheetRepository;
     EventRepository mEventRepository;
     UserRepository mUserRepository;
+    private LiveData<SigninTime> mSigninTime;
 
 
     @Inject
@@ -65,6 +67,19 @@ public class CreateEventViewModel extends ViewModel {
         mSelectedCalendar = mCalendarRepository.getSelectedCalendar();
         mSelectedSheet = mSheetRepository.getSelectedSheet();
         mUserTimer = mUserRepository.getUserTimer();
+        mSigninTime = mUserRepository.getSigninTime();
+    }
+
+    public LiveData<SigninTime> getSigninTime() {
+        return mSigninTime;
+    }
+
+    public void insertSigninTime(SigninTime timestamp) {
+        mUserRepository.insertSigninTime(timestamp);
+    }
+
+    public void deleteSigninTime() {
+        mUserRepository.deleteSigninTime();
     }
 
     public LiveData<TimeZone> getTimeZone() {

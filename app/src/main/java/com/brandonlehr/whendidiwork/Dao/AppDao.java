@@ -12,6 +12,7 @@ import com.brandonlehr.whendidiwork.models.Event;
 import com.brandonlehr.whendidiwork.models.SelectedCalendar;
 import com.brandonlehr.whendidiwork.models.SelectedSheet;
 import com.brandonlehr.whendidiwork.models.Sheet;
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.TimeZone;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.models.UserTimer;
@@ -111,6 +112,15 @@ public abstract class AppDao {
 
     @Query("DELETE FROM userTimer WHERE timerId=1")
     public abstract void deleteUserTimer();
+
+    @Query("SELECT * FROM signinTime")
+    public abstract LiveData<SigninTime> getSigninTime();
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    public abstract void insertSigninTime(SigninTime timestamp);
+
+    @Query("DELETE FROM signinTime")
+    public abstract void deleteSigninTime();
 
     @Transaction
     public void deleteOldUserInsertNew(UserResponse user) {

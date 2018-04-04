@@ -5,6 +5,7 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.brandonlehr.whendidiwork.Dao.AppDao;
+import com.brandonlehr.whendidiwork.models.SigninTime;
 import com.brandonlehr.whendidiwork.models.UserResponse;
 import com.brandonlehr.whendidiwork.models.UserTimer;
 import com.brandonlehr.whendidiwork.services.ApiCalls;
@@ -20,6 +21,7 @@ public class UserRepository {
 
     private LiveData<UserResponse> mUser;
     private LiveData<UserTimer> mUserTimer;
+    private LiveData<SigninTime> mSigninTime;
 
     private ApiCalls client;
     AppDao mAppDao;
@@ -29,6 +31,19 @@ public class UserRepository {
         mAppDao = appDao;
         mUser = mAppDao.getUser();
         mUserTimer = mAppDao.getUserTimer();
+        mSigninTime = mAppDao.getSigninTime();
+    }
+
+    public LiveData<SigninTime> getSigninTime() {
+        return mSigninTime;
+    }
+
+    public void insertSigninTime(SigninTime timestamp) {
+        new InsertSigninTimeTask(mAppDao).execute(timestamp);
+    }
+
+    public void deleteSigninTime() {
+        new DeleteSigninTimeTask(mAppDao).execute();
     }
 
     public LiveData<UserTimer> getUserTimer() {
@@ -54,6 +69,34 @@ public class UserRepository {
         protected Void doInBackground(UserTimer... userTimers) {
             Log.d(TAG, "doInBackground: insert userTimer " + userTimers[0].toString());
             asyncAppDao.insertUserTimer(userTimers[0]);
+            return null;
+        }
+    }
+
+    private static class InsertSigninTimeTask extends AsyncTask<SigninTime, Void, Void> {
+        private AppDao mAppDao;
+
+        InsertSigninTimeTask(AppDao appDao) {
+            mAppDao = appDao;
+        }
+
+        @Override
+        protected Void doInBackground(SigninTime... longs) {
+            mAppDao.insertSigninTime(longs[0]);
+            return null;
+        }
+    }
+
+    private static class DeleteSigninTimeTask extends AsyncTask<Void, Void, Void> {
+        private AppDao mAppDao;
+
+        DeleteSigninTimeTask(AppDao appDao) {
+            mAppDao = appDao;
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            mAppDao.deleteSigninTime();
             return null;
         }
     }
