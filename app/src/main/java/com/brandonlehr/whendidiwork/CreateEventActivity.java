@@ -124,60 +124,6 @@ public class CreateEventActivity extends AppCompatActivity implements Callback<U
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-
-        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
-        model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
-
-        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
-
-        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
-
-        // if null send to login
-        if (account == null) {
-            Intent signInIntent = new Intent(this, LoginActivity.class);
-            startActivity(signInIntent);
-            return;
-        }
-
-        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
-            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
-            attemptSilentLogin();
-        }
-
-        Intent initiatingIntent = getIntent();
-        if (initiatingIntent.hasExtra("EVENT_ID_TO_EDIT")) {
-            eventToEditId = initiatingIntent.getStringExtra("EVENT_ID_TO_EDIT");
-        }
-        if (Objects.equals(initiatingIntent.getAction(), "CREATE_EVENT_FROM_TIMER")) {
-            model.getUserTimer().observe(this, userTimer -> {
-
-                if (userTimer != null) {
-                    mUserTimer = userTimer;
-
-                    Log.d(TAG, "onCreate: =================== " + mUserTimer.toString());
-                    prepareEventFromTimer(mUserTimer);
-                }
-            });
-        }
-
-
-        model.getTimeZone().observe(this, timeZone -> mTimeZone = timeZone);
-        model.getSelectedCalendar().observe(this, calendar -> {
-            if (calendar == null) return;
-            mSelectedCalendar = calendar;
-            calendarId = mSelectedCalendar.getId();
-        });
-        model.getSelectedSheet().observe(this, sheet -> {
-            if (sheet == null) return;
-            mSelectedSheet = sheet;
-            sheetId = mSelectedSheet.getId();
-            summaryPrefix = mSelectedSheet.getName().substring(12) + " ";
-            if (eventToEditId == null) {
-                summaryEditText.setText(summaryPrefix);
-                summaryEditText.setSelection(summaryPrefix.length());
-            }
-        });
-
         bottomSheetTitle = findViewById(R.id.bottom_sheet_title);
         bottomSheetText = findViewById(R.id.bottom_sheet_text);
         bottomSheetTitleLL = findViewById(R.id.title_LL);
@@ -197,16 +143,6 @@ public class CreateEventActivity extends AppCompatActivity implements Callback<U
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         bottomSheetBehavior.setHideable(false);
 
-        model.getErrorResponse().observe(this, response -> {
-            mProgressBar.setVisibility(View.GONE);
-            Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Sorry an error has occurred", Snackbar.LENGTH_LONG);
-            View view = errorSnackbar.getView();
-            TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
-            tv.setTextColor(Color.RED);
-            tv.setTextSize(18f);
-            errorSnackbar.show();
-        });
-
         startDateEditText = findViewById(R.id.start_date_edit_text);
         startTimeEditText = findViewById(R.id.start_time_edit_text);
         endDateEditText = findViewById(R.id.end_date_edit_text);
@@ -220,6 +156,76 @@ public class CreateEventActivity extends AppCompatActivity implements Callback<U
         mProgressBar.setVisibility(View.GONE);
 
         title.setText(R.string.create_an_event);
+
+        ((Whendidiwork) getApplication()).getDIComponent().inject(this);
+        model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
+
+        Intent initiatingIntent = getIntent();
+        if (initiatingIntent.hasExtra("EVENT_ID_TO_EDIT")) {
+            eventToEditId = initiatingIntent.getStringExtra("EVENT_ID_TO_EDIT");
+        }
+        if (Objects.equals(initiatingIntent.getAction(), "CREATE_EVENT_FROM_TIMER")) {
+            model.getUserTimer().observe(this, userTimer -> {
+
+                if (userTimer != null) {
+                    mUserTimer = userTimer;
+
+                    Log.d(TAG, "onCreate: =================== " + mUserTimer.toString());
+                    prepareEventFromTimer(mUserTimer);
+                }
+            });
+        }
+
+        client = mRetrofitClient.create(ApiCalls.class);
+
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+
+        model.getSigninTime().observe(this, signinTime -> {
+            mSigninTime = signinTime;
+
+            // if null send to login
+            if (account == null) {
+                Intent signInIntent = new Intent(this, LoginActivity.class);
+                startActivity(signInIntent);
+                return;
+            }
+
+            if (mSigninTime == null || System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+                Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+                attemptSilentLogin();
+            } else {
+                setup();
+            }
+        });
+    }
+
+    private void setup() {
+        model.getTimeZone().observe(this, timeZone -> mTimeZone = timeZone);
+        model.getSelectedCalendar().observe(this, calendar -> {
+            if (calendar == null) return;
+            mSelectedCalendar = calendar;
+            calendarId = mSelectedCalendar.getId();
+        });
+        model.getSelectedSheet().observe(this, sheet -> {
+            if (sheet == null) return;
+            mSelectedSheet = sheet;
+            sheetId = mSelectedSheet.getId();
+            summaryPrefix = mSelectedSheet.getName().substring(12) + " ";
+            if (eventToEditId == null) {
+                summaryEditText.setText(summaryPrefix);
+                summaryEditText.setSelection(summaryPrefix.length());
+            }
+        });
+
+        model.getErrorResponse().observe(this, response -> {
+            mProgressBar.setVisibility(View.GONE);
+            Snackbar errorSnackbar = Snackbar.make(findViewById(R.id.coordinator), "Sorry an error has occurred", Snackbar.LENGTH_LONG);
+            View view = errorSnackbar.getView();
+            TextView tv = (TextView) view.findViewById(android.support.design.R.id.snackbar_text);
+            tv.setTextColor(Color.RED);
+            tv.setTextSize(18f);
+            errorSnackbar.show();
+        });
 
         if (eventToEditId != null) {
             title.setText(R.string.update_an_event);
@@ -253,7 +259,6 @@ public class CreateEventActivity extends AppCompatActivity implements Callback<U
                 }
             });
         }
-
     }
 
     private DateTime convertToDateTime(String dateString) {
@@ -294,6 +299,7 @@ public class CreateEventActivity extends AppCompatActivity implements Callback<U
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
         if (response.isSuccessful()) {
             model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+            setup();
         }
     }
 

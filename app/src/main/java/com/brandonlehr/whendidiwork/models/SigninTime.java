@@ -29,4 +29,12 @@ public class SigninTime {
     public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
     }
+
+    @Override
+    public String toString() {
+        return "SigninTime{" +
+                "id=" + id +
+                ", timestamp=" + timestamp +
+                '}';
+    }
 }

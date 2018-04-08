@@ -116,32 +116,26 @@ public class MainActivity extends AppCompatActivity implements
 
         MobileAds.initialize(this, Constants.ADMOB_ID);
 
-        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
-
-        // if null send to login
-        if (account == null) {
-            Intent signInIntent = new Intent(this, LoginActivity.class);
-            startActivity(signInIntent);
-            return;
-        }
-
-        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
-            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
-            attemptSilentLogin();
-        }
-
-        model.getUser().observe(this, userResponse -> {
-            mUser = userResponse;
-
-            CircleImageView profileImage = findViewById(R.id.profileImage);
-
-            if (mUser != null) {
-                Picasso.get().load(mUser.getGoogle().getProfileImg()).resize(125, 125).centerCrop().into(profileImage);
-            } else {
-                profileImage.setImageResource(R.drawable.ic_action_event);
+        model.getSigninTime().observe(this, signinTime -> {
+            if (signinTime != null) {
+                mSigninTime = signinTime;
             }
-        });
 
+            // if null send to login
+            if (account == null) {
+                Intent signInIntent = new Intent(this, LoginActivity.class);
+                startActivity(signInIntent);
+                return;
+            }
+
+            if (mSigninTime == null || System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+                Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+                attemptSilentLogin();
+            } else {
+                setup();
+            }
+
+        });
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fabLayout1 = (LinearLayout) findViewById(R.id.fabLayout1);
@@ -155,6 +149,30 @@ public class MainActivity extends AppCompatActivity implements
         sheetSelect = findViewById(R.id.sheetSelect);
         calendarSelect = findViewById(R.id.calendarSelect);
         fragmentHeading = findViewById(R.id.fragment_heading);
+
+        presentShowcaseSequence();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+    }
+
+    private void setup() {
+        model.getUser().observe(this, userResponse -> {
+            mUser = userResponse;
+
+            CircleImageView profileImage = findViewById(R.id.profileImage);
+
+            if (mUser != null) {
+                Picasso.get().load(mUser.getGoogle().getProfileImg()).resize(125, 125).centerCrop().into(profileImage);
+            } else {
+                profileImage.setImageResource(R.drawable.ic_action_event);
+            }
+        });
+
+
 
         mAdView = findViewById(R.id.adView1);
         AdRequest adRequest = new AdRequest.Builder().build();
@@ -224,7 +242,7 @@ public class MainActivity extends AppCompatActivity implements
 
 //        MaterialShowcaseView.resetSingleUse(this, SHOWCASE_MainActivity_ID);
 
-        presentShowcaseSequence();
+
     }
 
     private void attemptSilentLogin() {
@@ -261,6 +279,7 @@ public class MainActivity extends AppCompatActivity implements
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
         if (response.isSuccessful()) {
             model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+            setup();
         }
     }
 

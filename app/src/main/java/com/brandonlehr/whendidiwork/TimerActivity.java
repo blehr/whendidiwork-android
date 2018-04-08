@@ -50,6 +50,7 @@ public class TimerActivity extends AppCompatActivity implements Callback<UserRes
     Button timerButton, clearButton;
     private SigninTime mSigninTime;
     private ApiCalls client;
+    GoogleSignInAccount account;
 
 
     Runnable updater;
@@ -85,9 +86,13 @@ public class TimerActivity extends AppCompatActivity implements Callback<UserRes
         ((Whendidiwork) getApplication()).getDIComponent().inject(this);
         model = ViewModelProviders.of(this, viewModelFactory).get(CreateEventViewModel.class);
 
-        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+        client = mRetrofitClient.create(ApiCalls.class);
 
-        model.getSigninTime().observe(this, signinTime -> mSigninTime = signinTime);
+        account = GoogleSignIn.getLastSignedInAccount(this);
+
+        // Bind to LocalService
+        Intent intent = new Intent(this, MyTimerService.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 
         startTimeTV = findViewById(R.id.start_time_tv);
         endTimeTV = findViewById(R.id.end_time_tv);
@@ -101,17 +106,71 @@ public class TimerActivity extends AppCompatActivity implements Callback<UserRes
             handleTimerButtonClick();
         });
 
-        // if null send to login
-        if (account == null) {
-            Intent signInIntent = new Intent(this, LoginActivity.class);
-            startActivity(signInIntent);
-            return;
-        }
+        model.getSigninTime().observe(this, signinTime -> {
+            mSigninTime = signinTime;
 
-        if (mSigninTime != null && System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
-            Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
-            attemptSilentLogin();
-        }
+            // if null send to login
+            if (account == null) {
+                Intent signInIntent = new Intent(this, LoginActivity.class);
+                startActivity(signInIntent);
+                return;
+            }
+
+            if (mSigninTime == null || System.currentTimeMillis() - mSigninTime.getTimestamp() > (50 * 60 * 1000)) {
+                Log.d(TAG, "onCreate: Less than 50 minutes left on token ");
+                attemptSilentLogin();
+            }
+        });
+        setup();
+
+    }
+
+    private void setup() {
+
+        model.getSelectedSheet().observe(this, sheet -> mSelectedSheet = sheet);
+
+        model.getUserTimer().observe(this, userTimer -> {
+            mUserTimer = userTimer;
+
+            if (userTimer != null) {
+                Log.d(TAG, "setup: userTimer " + userTimer.toString());
+                // set the start time text
+                startTimeTV.setText(DateUtils.formatDateTime(this, mUserTimer.getStartTimeStamp(), DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_SHOW_DATE |
+                        DateUtils.FORMAT_SHOW_YEAR | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_ALL));
+
+                Log.d(TAG, "setup: mBound " + mBound);
+                // no end time - calculate elapsed time every second
+                if (mUserTimer.getEndTimeStamp() == null) {
+                    timerButton.setText(R.string.stop_timer);
+                    updater = new Runnable() {
+
+                        @Override
+                        public void run () {
+                            if(mBound) {
+                                elapsedTimeTV.setText(DateUtils.formatElapsedTime(mService.getCurrentInterval()));
+                                timerHandler.postDelayed(updater, 1000);
+                            }
+                        }
+                    };
+                    timerHandler.post(updater);
+
+                } else {
+                    // there is an end time
+                    endTimeTV.setText(DateUtils.formatDateTime(this, mUserTimer.getEndTimeStamp(), DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_SHOW_DATE |
+                            DateUtils.FORMAT_SHOW_YEAR | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_ALL));
+                    Long elapsedTime = (mUserTimer.getEndTimeStamp() - mUserTimer.getStartTimeStamp()) / 1000;
+                    elapsedTimeTV.setText(DateUtils.formatElapsedTime(elapsedTime));
+                    timerHandler.removeCallbacks(updater);
+                    timerButton.setText(R.string.create_event);
+                }
+            } else {
+                // clear all nothing to show
+                startTimeTV.setText("");
+                endTimeTV.setText("");
+                elapsedTimeTV.setText("");
+                timerButton.setText(R.string.start_timer);
+            }
+        });
     }
 
     private void attemptSilentLogin() {
@@ -148,6 +207,7 @@ public class TimerActivity extends AppCompatActivity implements Callback<UserRes
     public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
         if (response.isSuccessful()) {
             model.insertSigninTime(new SigninTime(System.currentTimeMillis()));
+            setup();
         }
     }
 
@@ -236,53 +296,6 @@ public class TimerActivity extends AppCompatActivity implements Callback<UserRes
     @Override
     protected void onStart() {
         super.onStart();
-        // Bind to LocalService
-        Intent intent = new Intent(this, MyTimerService.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-
-        model.getSelectedSheet().observe(this, sheet -> mSelectedSheet = sheet);
-
-        model.getUserTimer().observe(this, userTimer -> {
-            mUserTimer = userTimer;
-
-            if (userTimer != null) {
-                Log.d(TAG, "onCreate: userTimer " + userTimer.toString());
-                // set the start time text
-                startTimeTV.setText(DateUtils.formatDateTime(this, mUserTimer.getStartTimeStamp(), DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_SHOW_DATE |
-                        DateUtils.FORMAT_SHOW_YEAR | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_ALL));
-
-                // no end time - calculate elapsed time every second
-                if (mUserTimer.getEndTimeStamp() == null) {
-                    timerButton.setText(R.string.stop_timer);
-                    updater = new Runnable() {
-
-                            @Override
-                            public void run () {
-                                if(mBound) {
-                                elapsedTimeTV.setText(DateUtils.formatElapsedTime(mService.getCurrentInterval()));
-                                timerHandler.postDelayed(updater, 1000);
-                            }
-                        }
-                    };
-                    timerHandler.post(updater);
-
-                } else {
-                    // there is an end time
-                    endTimeTV.setText(DateUtils.formatDateTime(this, mUserTimer.getEndTimeStamp(), DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_SHOW_DATE |
-                            DateUtils.FORMAT_SHOW_YEAR | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_ALL));
-                    Long elapsedTime = (mUserTimer.getEndTimeStamp() - mUserTimer.getStartTimeStamp()) / 1000;
-                    elapsedTimeTV.setText(DateUtils.formatElapsedTime(elapsedTime));
-                    timerHandler.removeCallbacks(updater);
-                    timerButton.setText(R.string.create_event);
-                }
-            } else {
-                // clear all nothing to show
-                startTimeTV.setText("");
-                endTimeTV.setText("");
-                elapsedTimeTV.setText("");
-                timerButton.setText(R.string.start_timer);
-            }
-        });
     }
 
 
