@@ -120,6 +120,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             mLocationPermissionGranted = true;
+            updateLocationUI();
 
         } else {
             ActivityCompat.requestPermissions(this,
@@ -171,6 +172,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        Log.d(TAG, "getDeviceLocation: GETTING DEVICE LOCATION");
         mFusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, location -> {
                     // Got last known location. In some rare situations this can be null.
@@ -302,7 +304,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 drawGeofence();
             }
         });
-
+        Log.d(TAG, "onMapReady: HERERERERERERERERRERERERRER");
         updateLocationUI();
     }
 

@@ -104,6 +104,7 @@ public class LoginActivity extends AppCompatActivity implements Callback<UserRes
     private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+            Log.d(TAG, "handleSignInResult: " + account);
 
             String authCode = account.getServerAuthCode();
 

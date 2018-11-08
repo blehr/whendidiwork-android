@@ -116,7 +116,7 @@ public class MyTimerService extends Service {
             // the NotificationChannel class is new and not in the support library
             CharSequence name = getString(R.string.channel_name);
             String description = getString(R.string.channel_description);
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            int importance = NotificationManager.IMPORTANCE_LOW;
             NotificationChannel channel = new NotificationChannel(Constants.CHANNEL_ID, name, importance);
             channel.setDescription(description);
             // Register the channel with the system
@@ -133,7 +133,7 @@ public class MyTimerService extends Service {
         builder.setSmallIcon(R.mipmap.ic_launcher_whendidiwork);
 
         // Make the notification max priority.
-        builder.setPriority(Notification.PRIORITY_MAX);
+        builder.setPriority(Notification.PRIORITY_LOW);
 
         // Add Stop button intent in notification.
         Intent stopIntent = new Intent(this, MyTimerService.class);
@@ -152,7 +152,7 @@ public class MyTimerService extends Service {
         Notification notification = builder.build();
 
         // Start foreground service.
-        startForeground(1, notification);
+        startForeground(Constants.NOTIFICATION_ID, notification);
 
         // mine
         updater = new Runnable() {
