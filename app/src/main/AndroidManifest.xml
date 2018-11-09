@@ -83,14 +83,22 @@
 
         <service
             android:name=".LocationIntentService"
-            android:exported="false" />
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver
             android:name=".BroadcastReceiverOnBootComplete"
             android:label="BroadcastReceiverOnBootComplete">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.brandonlehr.whendidiwork.LocationBroadcastReceiver.ACTION_PROCESS_UPDATES" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".OnBootService"
+            android:label="OnBootService"
+            android:permission="android.permission.BIND_JOB_SERVICE"/>
+
     </application>
 
 </manifest>

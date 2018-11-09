@@ -60,6 +60,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     List<Geofence> mGeofenceList = new ArrayList<>();
     PendingIntent mGeofencePendingIntent;
 
+    static final String ACTION_PROCESS_UPDATES =
+            "com.brandonlehr.whendidiwork.action" +
+                    ".PROCESS_UPDATES";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,10 +102,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        mapButton.setOnClickListener(view -> {
-            createGeoFence(centerMarker.getPosition());
-            Toast.makeText(this, "Latitude: " + centerMarker.getPosition().latitude + " Longitude: " + centerMarker.getPosition().longitude + " Radius: " + fenceRadius, Toast.LENGTH_LONG).show();
-        });
+//        mapButton.setOnClickListener(view -> {
+//            createGeoFence(centerMarker.getPosition());
+//            Toast.makeText(this, "Latitude: " + centerMarker.getPosition().latitude + " Longitude: " + centerMarker.getPosition().longitude + " Radius: " + fenceRadius, Toast.LENGTH_LONG).show();
+//        });
 
         clearButton.setOnClickListener(view -> {
             removeGeofences();
@@ -255,9 +259,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (mGeofencePendingIntent != null) {
             return mGeofencePendingIntent;
         }
-        Intent intent = new Intent(this, LocationIntentService.class);
+        Intent intent = new Intent(this, BroadcastReceiverOnBootComplete.class);
+        intent.setAction(ACTION_PROCESS_UPDATES);
         // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling addGeofences() and removeGeofences().
-        mGeofencePendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.
+        mGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.
                 FLAG_UPDATE_CURRENT);
         return mGeofencePendingIntent;
     }
@@ -285,6 +290,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+
+        mapButton.setOnClickListener(view -> {
+            createGeoFence(centerMarker.getPosition());
+            Toast.makeText(this, "Latitude: " + centerMarker.getPosition().latitude + " Longitude: " + centerMarker.getPosition().longitude + " Radius: " + fenceRadius, Toast.LENGTH_LONG).show();
+        });
 
         mMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
             @Override

@@ -4,6 +4,7 @@ import android.app.Application;
 
 import com.brandonlehr.whendidiwork.component.DIComponent;
 import com.brandonlehr.whendidiwork.component.DaggerDIComponent;
+import com.brandonlehr.whendidiwork.module.ActivityModule;
 import com.brandonlehr.whendidiwork.module.AppModule;
 import com.brandonlehr.whendidiwork.module.DbModule;
 import com.brandonlehr.whendidiwork.module.GoogleClientModule;

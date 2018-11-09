@@ -5,9 +5,11 @@ import com.brandonlehr.whendidiwork.CreateCalendarActivity;
 import com.brandonlehr.whendidiwork.CreateEventActivity;
 import com.brandonlehr.whendidiwork.CreateSheetActivity;
 import com.brandonlehr.whendidiwork.EventListFragment;
+import com.brandonlehr.whendidiwork.LocationIntentService;
 import com.brandonlehr.whendidiwork.LoginActivity;
 import com.brandonlehr.whendidiwork.MainActivity;
 import com.brandonlehr.whendidiwork.MyTimerService;
+import com.brandonlehr.whendidiwork.OnBootService;
 import com.brandonlehr.whendidiwork.SheetListFragment;
 import com.brandonlehr.whendidiwork.TimerActivity;
 import com.brandonlehr.whendidiwork.module.AppModule;
@@ -45,5 +47,7 @@ public interface DIComponent {
     void inject(EventListFragment eventListFragment);
     void inject(TimerActivity timerActivity);
     void inject(MyTimerService myTimerService);
+    void inject(OnBootService onBootService);
+    void inject(LocationIntentService locationIntentService);
 
 }
